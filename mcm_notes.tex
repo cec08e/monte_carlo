@@ -136,4 +136,63 @@ most of the time, then the average of their product will be a negative value.
 another, then their product will be sometimes positive and sometimes negative,
 averaging to zero over a long time.
 \end{itemize}
+
+This definition can be problematic in the case of a \emph{spontaneously
+broken symmetry state}. This occurs when a variable $x$ develops a non-zero
+expectation value. If this happens, $x_{i}$ and $x_{j}$ may, for instance,
+always be large positive values leading to a large positive correlation value
+even if they have nothing to do with one another. To address this problem, we
+can use the \emph{two-point connected correlation function} $G_{c}^{(2)}(i,j)$
+defined as
+$$G_{c}^{(2)}(i,j) = \left \langle x_{i}x_{j} \right \rangle - \left \langle x_{i} \right \rangle \left \langle x_{j} \right \rangle$$
+$$ = \left \langle (x_{i} - \left \langle x_{i} \right \rangle) \times (x_{j} - \left \langle x_{j} \right \rangle) \right \rangle $$
+For reference, the higher-order connected correlation functions for three and four sites can be found in
+section 1.2.1.
+
+\subsection{Example: The Ising Model}
+The two-dimensional Ising model of a magnet consists of a lattice of sites, where
+each site contains a magnetic dipole or spin. Each spin is a two-level system
+denoted by the variable $s_{i}$, which can only take on the values $\pm 1$. Exchange
+interactions are modeled by including terms proportional to $s_{i}s_{j}$ in the
+Hamiltonian. In the simplest case, these terms are identical for each pair of spins
+(indicating the same interaction strength $J$ all over the lattice). Another simplification
+is to consider only nearest neighbor interactions. An external magnetic field $B$
+can also be introduced. In this case we obtain the following Hamiltonian
+$$H = -J\sum_{\left \langle ij \right \rangle }s_{i}s_{j} - B\sum_{i}s_{i}$$
+where $\left \langle ij \right \rangle$ indicates a sum over nearest neighbors. The minus
+signs are conventional and fix the signs of the parameters $J$ and $B$. In the current form:
+\begin{itemize}
+\item A positive $J$ value (\emph{ferromagnetic}) makes the spins want to align to minimize the Hamiltonian.
+\item A negative $J$ value (\emph{anti-ferromagnetic}) makes the spins want to anti-align.
+\item A positive $B$ value makes the spins want to orient positively.
+\item A negative $B$ value makes the spins want to orient negatively - that is, they
+want to align with the magnetic field.
+\end{itemize}
+Each state of the Ising system is an specific "setting" of the spins in the lattice. For $N$
+sites in the lattice, there are $2^{N}$ states. Earlier we defined the partition function
+$Z$ as
+$$Z = \sum_{\mu}e^{-\beta E_{\mu}}$$
+where \{$\mu$\} represents a set of states. So our Ising partition function is given by
+$$Z = \sum_{s_{1} = \pm 1} \sum_{s_{2} = \pm 1}...\sum_{s_{N}=\pm 1}e^{-\beta H} = \sum_{\{s_{i}\}} e^{-\beta H}$$
+From the partition function, we can calculate the internal energy, entropy, free energy, specific heat, and so on (see section
+1.2). The mean magnetization $\left \langle M \right \rangle $ is given by
+$$\left \langle M \right \rangle  = \left \langle \sum_{i}s_{i} \right \rangle $$
+and the mean magnetization per spin $\left \langle m \right \rangle$ is just
+$$\left \langle m \right \rangle = \frac{1}{N} \left \langle M \right \rangle $$
+The magnetic susceptibility is calculated as
+$$\frac{\partial \left \langle M \right \rangle }{\partial B} = \beta (\left \langle M^{2} \right \rangle - \left \langle M \right \rangle^{2}  )$$
+and the magnetic susceptibility per spin is calculated as
+$$\chi = \frac{1}{N}\frac{\partial \left \langle M \right \rangle }{\partial B}$$
+The specific heat is given by
+$$c = \frac{k\beta^{2}}{N}(\left \langle E^{2} \right \rangle - \left \langle E \right \rangle^{2}  )$$
+
+If we introduce a spatially-varying magnetic field by subscripting $B$, our
+Hamiltonian becomes
+$$H = -J\sum_{\left \langle ij \right \rangle }s_{i}s_{j} - \sum_{i}B_{i}s_{i}$$
+and the mean magnetization per site becomes
+$$\left \langle m_{i} \right \rangle = \left \langle s_{i} \right \rangle = \frac{1}{\beta}\frac{\partial \log Z}{\partial B_{i}}$$
+which allows us to write down the connected correlation function
+$$G_{c}^{(2)}(i,j) = \frac{1}{\beta^{2}}\frac{\partial^{2} \log Z}{\partial B_{i}\partial B_{j}}$$
+
+\subsection{Numerical Methods}
 \end{document}
