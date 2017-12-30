@@ -1,6 +1,7 @@
 \documentclass{article}
 \usepackage{amsthm}
 \usepackage{graphicx}
+\usepackage{color}
 \usepackage{subfig}
 \usepackage{physics}
 \graphicspath{ {figures/} }
@@ -195,4 +196,85 @@ which allows us to write down the connected correlation function
 $$G_{c}^{(2)}(i,j) = \frac{1}{\beta^{2}}\frac{\partial^{2} \log Z}{\partial B_{i}\partial B_{j}}$$
 
 \subsection{Numerical Methods}
+There are several computational methods that can be used to solve
+for quantities of interest in a given model. The most straightforward method
+involves mapping the model of interest to a lattice of finite size so that
+the partition function is exactly calculable by computer.
+
+\subsubsection{Example: 2D Ising Model}
+We start with a two-dimensional lattice of 25 spins, arranged in a 5$\times$5 grid.
+We assume periodic boundary conditions such that spins at one end of the lattice
+experience interations with spins on the other end. We also start with no externak
+magnetic field ($B = 0$).
+
+There are $2^{25}$ possible configurations, or states. However, we can utilize
+the symmetry of the system to argue that every state has a reflective partner
+where every spin is flipped. If $B = 0$, this state must have the same energy
+as its reflective partner. Therefore, we only need to consider one of each pair in
+the calculation of our partition function and then double the sum.
+
+To calculate the mean magnetization per spin, we can use
+$$\left \langle m \right \rangle = \frac{1}{N} \left \langle M \right \rangle = \frac{1}{N}\left \langle \sum_{i}s_{i} \right \rangle $$
+and to calculate the specific heat per spin we use
+$$C = \frac{\partial U}{\partial T} = -k\beta^{2}\frac{\partial U}{\partial \beta} = k\beta^{2}\frac{\partial^{2} \log Z}{\partial \beta^{2}}$$
+To do: calculate partition function, specific heat and mean magnetization and plot last two. Compare against closed form equations by Onsager.
+The key conclusion is that the physics is not well modeled on a finite lattice around the critical point ($kT = 2.3J$), but we stil get fairly
+accurate results away from this point. It is still desirable to study the largest finite-sized system possible
+to most accurately reason about the properties of the system in the thermodynamic limit. However, brute force calculations
+scale rapidly in time with the lattice size. We must find other ways to calculate quantities of interest on a large lattice size.
+
+\subsubsection{Monte Carlo Methods}
+To calculate the partition function of a larger lattice for the Ising model, we turn to
+Monte Carlo simulation. The fundamental idea is to simulate the thermal fluctuations from state
+to state - in accordance with a set of weights $w_{\mu}(t)$ as they would be in the real system.
+We then take a time average of the quantity of interest, which is regarded as an expectation value
+of that quantity.
+
+For this approach to work, we must find an accurate dynamics for the system that will govern its
+time evoluation. That is, we must determine the master equation of the system. We do this by
+\begin{itemize}
+\item Choosing a set of rates $R(\mu \rightarrow \nu)$ for the transitions.
+\item Forcing the equilibrium solution for the master equation to be the Boltzmann distribution.
+\item Use this set of rates to time-evolve the simulated system.
+\item Estimate the observable quantity in which we're interested.
+\end{itemize}
+
+This approach has the benefit that we do not need to recreate every state to get an accurate solution.
+We only need to time-evolve through a small fraction of states. However, there are statistical errors
+that arise from not recreating every state (these can be reduced by lengthening the simulation time).
+For this reason, it is not wise to calculating the partition function and use this to calculate other
+values. Instead, we should calculate quantities of interest directly (to reduce the noise of the result).
+
+\subsection{Problems}
+\begin{itemize}
+\item \textbf{1.1} "If a system is in equilibrium with a thermal reservoir at temperature $T$, the probability
+of its having a total energy $E$ varies with $E$ in proportion to $e^{-\beta E}.$" True of False?
+{\color{red} False. If a system is in equilibrium with a thermal reservoir of temperature $T$, the
+probability of its having a total energy $E$ is given by its probability of being in any state with characteristic
+energy $E$. This can be written as
+$$P_{E} = \frac{1}{Z}\sum_{E_{\mu} = E}e^{-\beta E_{\mu}}$$
+The partition function factor $1/Z$ is found in all $P_{E}$ values for any given $E$. We can also note that,
+by definition, all $E_{\mu}$ values in the sum of exponentials are simply $E$. Therefore, if we know the degeneracy
+of the energy value $E$ (denoted $g_{E}$), then the probability of the system having total energy $E$ is given by
+$$P_{E} = \frac{1}{Z}g_{E}e^{-\beta E} \propto g_{E}e^{-\beta E}$$
+}
+\item \textbf{1.2} A certain simple system has only two energy states, with energies $E_{0}$ and $E_{1}$, and
+transitions between the two states take place at rates $R(0 \rightarrow 1) = R_{0}exp[-\beta (E_{1} - E_{0})]$
+and $R(1 \rightarrow 0) = R_{0}$. Solve the master equation for the probabilities $w_{0}$ and $w_{1}$ of
+occupation of the two states as a functions of time with the initial conditions $w_{0} = 0$, $w_{1} = 1$.
+Show that as $t \rightarrow \infty$ these solutions tend to the Boltzmann probabilities.
+\item \textbf{1.3} A slightly more complex system contains $N$ distinguishable particles, each of which can be in one of two
+boxes. The particles in the first box have energy $E_{0} = 0$ and the particles in the second have energy $E_{1}$, and
+particles are allowed to move back and forward between the boxes under the influence of thermal excitations from a
+reservoir at temperature $T$. Find the partition function for this system and then use this result to calculate the internal
+energy.
+\item \textbf{1.4} Solve the Ising model in one dimension for the case $B = 0$ as follows. Define a new set
+of variables $\sigma_{i}$ which take values $0$ and $1$ according to
+$\sigma_{i} = \frac{1}{2}(1 - s_{i}s_{i+1})$ and rewrite the Hamiltonian in terms of these
+variables for a system of $N$ spins with periodic boundary conditions. Show that the resulting system is
+equivalent to the one studied in Problem 1.3 in the limit of large $N$ and hence calculate the internal
+energy as a function of temperature.
+\end{itemize}
+
+
 \end{document}
