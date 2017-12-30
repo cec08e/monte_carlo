@@ -1,5 +1,6 @@
 \documentclass{article}
 \usepackage{amsthm}
+\usepackage{amsmath}
 \usepackage{graphicx}
 \usepackage{color}
 \usepackage{subfig}
@@ -249,6 +250,7 @@ values. Instead, we should calculate quantities of interest directly (to reduce 
 \begin{itemize}
 \item \textbf{1.1} "If a system is in equilibrium with a thermal reservoir at temperature $T$, the probability
 of its having a total energy $E$ varies with $E$ in proportion to $e^{-\beta E}.$" True of False?
+
 {\color{red} False. If a system is in equilibrium with a thermal reservoir of temperature $T$, the
 probability of its having a total energy $E$ is given by its probability of being in any state with characteristic
 energy $E$. This can be written as
@@ -258,11 +260,55 @@ by definition, all $E_{\mu}$ values in the sum of exponentials are simply $E$. T
 of the energy value $E$ (denoted $g_{E}$), then the probability of the system having total energy $E$ is given by
 $$P_{E} = \frac{1}{Z}g_{E}e^{-\beta E} \propto g_{E}e^{-\beta E}$$
 }
+
 \item \textbf{1.2} A certain simple system has only two energy states, with energies $E_{0}$ and $E_{1}$, and
 transitions between the two states take place at rates $R(0 \rightarrow 1) = R_{0}exp[-\beta (E_{1} - E_{0})]$
 and $R(1 \rightarrow 0) = R_{0}$. Solve the master equation for the probabilities $w_{0}$ and $w_{1}$ of
 occupation of the two states as a functions of time with the initial conditions $w_{0} = 0$, $w_{1} = 1$.
 Show that as $t \rightarrow \infty$ these solutions tend to the Boltzmann probabilities.
+
+{\color{red} The general form of the master equation is
+$$\frac{dw_{\mu}}{dt} = \sum_{\nu}[w_{\nu}(t)R(\nu \rightarrow \mu)
+                              - w_{\mu}(t)R(\mu \rightarrow \nu)]
+$$
+For our two state system, we obtain two coupled equations:
+\begin{equation}
+\begin{aligned}
+\frac{dw_{0}}{dt} &= w_{1}(t)R(1 \rightarrow 0)
+                              - w_{0}(t)R(0 \rightarrow 1)\\
+                  &= w_{1}(t)R_{0} - w_{0}(t)R_{0}exp[-\beta (E_{1} - E_{0})]
+\end{aligned}
+\end{equation}
+and
+\begin{equation}
+\begin{aligned}
+\frac{dw_{1}}{dt} &= w_{0}(t)R(0 \rightarrow 1)
+                              - w_{1}(t)R(1 \rightarrow 0)\\
+                  &= w_{0}(t)R_{0}exp[-\beta (E_{1} - E_{0})] - w_{1}(t)R_{0}
+\end{aligned}
+\end{equation}
+which we can write as
+$$
+\begin{bmatrix}
+\dot{w_{0}}
+\\
+\dot{w_{1}}
+\end{bmatrix}
+=
+\begin{bmatrix}
+-R_{0}exp[-\beta (E_{1} - E_{0})] & R_{0}\\
+ R_{0}exp[-\beta (E_{1} - E_{0})] & -R_{0}
+\end{bmatrix}
+\begin{bmatrix}
+w_{0}
+\\
+w_{1}
+\end{bmatrix}
+$$
+Solving for $w_{0}(t)$ and $w_{1}(t)$ involves solving the eigenvalue problem for the $2\times2$
+matrix above.
+We week
+}
 \item \textbf{1.3} A slightly more complex system contains $N$ distinguishable particles, each of which can be in one of two
 boxes. The particles in the first box have energy $E_{0} = 0$ and the particles in the second have energy $E_{1}$, and
 particles are allowed to move back and forward between the boxes under the influence of thermal excitations from a
