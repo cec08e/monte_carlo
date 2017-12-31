@@ -262,7 +262,7 @@ $$P_{E} = \frac{1}{Z}g_{E}e^{-\beta E} \propto g_{E}e^{-\beta E}$$
 }
 
 \item \textbf{1.2} A certain simple system has only two energy states, with energies $E_{0}$ and $E_{1}$, and
-transitions between the two states take place at rates $R(0 \rightarrow 1) = R_{0}exp[-\beta (E_{1} - E_{0})]$
+transitions between the two states take place at rates $R(0 \rightarrow 1) = R_{0}\exp[-\beta (E_{1} - E_{0})]$
 and $R(1 \rightarrow 0) = R_{0}$. Solve the master equation for the probabilities $w_{0}$ and $w_{1}$ of
 occupation of the two states as a functions of time with the initial conditions $w_{0} = 0$, $w_{1} = 1$.
 Show that as $t \rightarrow \infty$ these solutions tend to the Boltzmann probabilities.
@@ -314,6 +314,43 @@ $$\begin{vmatrix}
 $$(-R_{0}\exp[-\beta (E_{1} - E_{0})] - \lambda)(-R_{0} - \lambda) - R_{0}^{2}\exp[-\beta (E_{1} - E_{0})] = 0$$
 $$\lambda(R_{0}\exp[-\beta (E_{1} - E_{0})] + R_{0}) + \lambda^{2} = 0 $$
 Our two eigenvalues are $\lambda = 0$ and $\lambda = -R_{0}(\exp[-\beta (E_{1} - E_{0})] + 1)$
+For simplicity, we will temporarily set $\alpha = \exp[-\beta (E_{1} - E_{0})]$. The associated eigenvectors are
+$$C_{1}\begin{bmatrix}
+1\\
+\alpha
+\end{bmatrix}$$
+and
+$$C_{2}\begin{bmatrix}
+1\\
+-1
+\end{bmatrix}$$
+Where $C_{1}$ and $C_{2}$ are arbitrary constants. Our solutions are therefore given by
+$$w_{0}(t) = C_{1} + C_{2}e^{-R_{0}(\alpha + 1)t} $$
+$$w_{1}(t) = \alpha C_{1} - C_{2}e^{-R_{0}(\alpha + 1)t}$$
+Using the initial condition $w_{0}(0) = 0$, we discover $C_{1} = -C_{2}$. Then, using the initial condition $w_{1}(0) = 1$, we find
+that $C_{1} = 1/(\alpha + 1)$. Putting all of this together, we obtain the final solutions
+
+$$w_{0}(t) = \frac{1 - e^{-R_{0}(\alpha + 1)t}}{\alpha + 1}$$
+$$w_{1}(t) = \frac{\alpha + e^{-R_{0}(\alpha + 1)t}}{\alpha + 1}$$
+
+In the limit $t \rightarrow \infty$,
+$$
+\begin{aligned}
+w_{0}(t) &= \frac{1}{\alpha + 1} \\
+&= \frac{1}{e^{-\beta (E_{1} - E_{0})} + 1} \\
+&= \frac{e^{-\beta E_{0}}}{e^{-\beta E_{1}} + e^{-\beta E_{0}}} \\
+&= \frac{e^{-\beta E_{0}}}{Z}
+\end{aligned}
+$$
+$$
+\begin{aligned}
+w_{1}(t) &= \frac{\alpha}{\alpha + 1} \\
+&= \frac{e^{-\beta (E_{1} - E_{0})} }{e^{-\beta (E_{1} - E_{0})}  + 1} \\
+&= \frac{e^{-\beta E_{1}}}{e^{-\beta E_{1}}  + e^{-\beta E_{0}}} \\
+&= \frac{e^{-\beta E_{1}}}{Z} \\
+\end{aligned}
+$$
+So, we can see that in the limit $t \rightarrow \infty$, we recover the Boltzmann distribution.
 }
 \item \textbf{1.3} A slightly more complex system contains $N$ distinguishable particles, each of which can be in one of two
 boxes. The particles in the first box have energy $E_{0} = 0$ and the particles in the second have energy $E_{1}$, and
