@@ -405,6 +405,27 @@ H &= -J\sum_{i}s_{i}s_{i+1} \\
   &=  -J\sum_{i}-2\sigma_{i} + 1
 \end{aligned}
 $$
+We've now reduced the problem to consideration of a set of variables $\sigma_{i}$, which
+can only take on the values $0$ (if $s_{i} = s_{i+1}$) and $1$ (if $s_{i} \neq s_{i+1}$).
+In this way, we've introduced a new binary "spin-like" variable. The partition function of this
+system is given by
+$$
+\begin{aligned}
+Z &= \sum_{\{\sigma_{i}\}}e^{-\beta J \sum_{i}(2\sigma_{i} - 1)} \\
+&= \sum_{\{\sigma_{i}\}}e^{\sum_{i}\beta J}e^{-\beta J \sum_{i}2\sigma_{i}}
+\end{aligned}
+$$
+Since each individual $\sigma_{i}$ can only take on the values $0$ and $1$, the quantity
+$\sum_{i}2\sigma_{i}$ is simply given by $2n$ where $n$ is the number of $\sigma_{i}$ variables with
+the value $1$. However, the number of ways of obtaining $2n$ in the exponent is equivalent
+to the number of ways of choosing $n$ out of $N$ spin-like variables $\sigma_{i}$ to be positive. So,
+we obtain
+$$
+\begin{aligned}
+Z &= \sum_{n=0}^{N}e^{N\beta J}\binom{N}{n}e^{-\beta J 2n}
+\end{aligned}
+$$
+Which very similar to the partition function we obtained in the previous problem.
 
 }
 % Note: Stirling's approximation for ln(N) large N
@@ -431,4 +452,105 @@ $Q_{M}$ is defined as
 $$Q_{M} = \frac{\sum_{i=1}^{M}Q_{\mu_{i}}p_{\mu_{i}}^{-1}e^{-\beta E_{\mu_{i}}}}{\sum_{j=1}^{M}p_{\mu_{j}}^{-1}e^{-\beta E_{\mu_{j}}}}$$
 This quantity is known as the \emph{estimator} of $Q$. As the number of states sampled, $M$, increases $Q_{M}$ becomes an
 increasingly accurate estimate for $\left \langle Q \right \rangle$. As $M \rightarrow \infty$, $Q_{M}$ becomes $\left \langle Q \right \rangle$.
+
+The problem then becomes choosing $p_{\mu}$ values such that the $M$ chosen states to calculate the
+estimator actually represent the relatively important terms in the expectation value. The technique for
+choosing these states is known as \emph{importance sampling}.
+
+\subsection{Importance Sampling}
+The goal is to select sample states of the system proportional to the Boltzmann weight of the state.
+In other words, sampled states are more likely to have a high probability of realization in the
+simulated system - they are more "relevant" for expectation value calculation. The probability of a
+particle state $\mu$ being chosen should be given by
+$$
+p_{\mu} = \frac{e^{-\beta E_{\mu}}}{Z}
+$$
+and therefore our estimator is now given by
+$$
+\begin{aligned}
+Q_{M} &= \frac{\sum_{i=1}^{M}Q_{\mu_{i}}p_{\mu_{i}}^{-1}e^{-\beta E_{\mu_{i}}}}{\sum_{j=1}^{M}p_{\mu_{j}}^{-1}e^{-\beta E_{\mu_{j}}}} \\
+&= \frac{\sum_{i=1}^{M}Q_{\mu_{i}}e^{\beta E_{\mu_{i}}}e^{-\beta E_{\mu_{i}}}}{\sum_{j=1}^{M}e^{\beta E_{\mu_{j}}}e^{-\beta E_{\mu_{j}}}}\\
+&= \frac{1}{M}\sum_{i=1}^{M}Q_{\mu_{i}}
+\end{aligned}
+$$
+
+\subsubsection{Markov Processes}
+To actually choose a good set of random states, we rely on \emph{Markov processes} to generate
+the states appropriately. A Markov processes generates a Markov chain of states. If we start
+with state $\mu$, the Markov process will generate a state $\nu$ according to the transition
+probability $P(\mu \rightarrow \nu)$. This process is repeated over a long enough time such that
+the states chosen represent the Boltzmann distribution. To eventually come to equilibrium (meaning
+that our set of states represent the Boltzmann distribution), we require the following:
+\begin{itemize}
+\item Transition probabilities must satisfy $\sum_{\nu}P(\mu \rightarrow \nu) = 1$
+\item The value of $P(\mu \rightarrow \nu)$ for any $\mu$, $\nu$ does not vary over time.
+\item $P(\mu \rightarrow \mu)$ may be non-zero.
+\item \emph{Ergodicity}: it should be possible for the Markov process to reach any state of the system from
+any other state.
+\item \emph{Detailed balance}: the Boltzmann probability distribution is obtained, as opposed to another distribution. This can be
+enforced by applying the condition of detailed balance,
+$$p_{\mu}P(\mu \rightarrow \nu) = p_{\nu}P(\nu \rightarrow \mu)$$
+where $p_{\mu}, p_{\nu}$ are Boltzmann probabilities.
+\end{itemize}
+
+\subsection{Acceptance Ratios}
+It can be difficult to define the set of transition probabilities $P(\mu \rightarrow \nu)$ that
+correctly characterizes the ideal Markov process. There are a set of standard methods (e.g. Metropolis)
+but we are likely to get far more accurate results by coming up with our own approach, which could be tedious
+or involve trial-and-error. One way to simplify this process is to note that $P(\mu \rightarrow \mu)$ can be
+non-zero. So, we can start with $P(\mu \rightarrow \mu) = 1$ (satisying the detailed balance and normalization
+conditions), and tweak the other $P(\mu \rightarrow \nu)$ values incrementally (with appropriate changes made to
+$P(\mu \rightarrow \mu)$).
+
+Another way to describe this process is to write the transition probabilities in the following way
+$$P(\mu \rightarrow \nu) = g(\mu \rightarrow \nu)A(\mu \rightarrow \nu)$$
+where
+\begin{itemize}
+\item $g(\mu \rightarrow \nu)$ is the \emph{selection probability}, the probability given an initial state
+$\mu$ that our algorithm will generate target state $\nu$.
+\item $A(\mu \rightarrow \nu)$ is the \emph{acceptance ratio}, the probability that we accept and transition to
+the chosen target state $\nu$.
+\end{itemize}
+In choosing acceptance ratios, we should strive to keep them as close to $1$ as possible. If all acceptance ratios are
+low, we are likely to perform very many time steps without actually transitioning to another state. By keeping
+acceptance ratios high, we place more of a burden on the selection probabilities to simulate the true transition
+probabilities. The ideal scenario involves absolutely correct selection probabilities and unity acceptance ratios. In
+reality, we shift some of the burden of correctness off onto the acceptance ratio.
+
+\subsubsection{Continuous Time Monte Carlo}
+The basic idea behind continuous time Monte Carlo algorithms is to vary the length of the time step according
+to the amount of time we expect the system to reject transitions to other states. A basic continuous time Monte
+Carlo algorithm is the following:
+\begin{itemize}
+\item Calculate probabilities $P(\mu \rightarrow \nu)$ for transitions to all states from
+current state $\mu$. Choose new state $\nu$ according to $P(\mu \rightarrow \nu)$ and transition to
+$\nu$.
+\item Calculate $\Delta t$ from $P(\mu \rightarrow \nu)$ values. Approximately,
+$$\Delta t \approx \frac{1}{\sum_{\nu \neq \mu} P(\mu \rightarrow \nu)}$$
+See section 2.4 for more details.
+\item Increment time $t$ by $\Delta t$ to mimic effect of "waiting" for $\Delta t$ time steps.
+\end{itemize}
+
+\subsection{Problems}
+\begin{itemize}
+\item \textbf{2.1} Derive Equation (2.8) from Equation (1.1).
+
+{
+\color{red}
+The goal is to derive
+$$w_{\nu}(t+1) = \sum_{\mu}P(\mu \rightarrow \nu)w_{\mu}(t)$$
+from the master equation
+$$\frac{dw_{\mu}}{dt} = \sum_{\nu}[w_{\nu}(t)R(\nu \rightarrow \mu)
+                              - w_{\mu}(t)R(\mu \rightarrow \nu)]$$
+}
+
+\item \textbf{2.2} Consider a system which has just three energy states, with energies
+$E_{0} < E_{1} < E_{2}$. Suppose that the only allowed transitions are ones of the form
+$\mu \rightarrow \nu$, where $\nu = (\mu + 1) \mod 3$. Such a system cannot satisfy
+detailed balance. Show nonetheless that it is possible to choose the transition
+probabilities $P(\mu \rightarrow \nu)$ so that the Boltzmann distribution is an
+equilibrium of the dynamics.
+\end{itemize}
+
+
 \end{document}
