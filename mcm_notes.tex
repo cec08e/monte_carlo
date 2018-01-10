@@ -552,5 +552,56 @@ probabilities $P(\mu \rightarrow \nu)$ so that the Boltzmann distribution is an
 equilibrium of the dynamics.
 \end{itemize}
 
+\section{The Ising Model and the Metropolis Algorithm}
+Brief recap of the Ising model:
+\begin{itemize}
+\item Model of a magnet in which spins $s_{i}$ are placed on sites $i$ of a lattice.
+\item Each spin $s_{i}$ can take on one of two values, $+1$ or $-1$.
+\item If there are $N$ sites in the lattice, there are $2^{N}$ possible lattice configurations.
+\item The Hamiltonian is given by
+$$H = -J\sum_{\left \langle ij \right \rangle}s_{i}s_{j} - B\sum_{i}s_{i}$$
+where $J$ is the interaction energy between nearest-neighbor spins and $B$ is an external magnetic field.
+\end{itemize}
+
+\subsection{The Metropolis Algorithm}
+A system that is in thermal equilibrium will only ever have energies within a very narrow range. That is,
+we do not expect a system in equilibrium to experience a drastic change in energy. For this reason, a simulation
+of a system in equilibrium may only want to consider transitions to states with energies that are very close
+to the current energy. One way to achieve this is to enforce \emph{single-spin-flip dynamics}, in which only one spin
+is flipped during any given transition.
+
+If we enforce single-spin-flip dynamics, the new energy can only differ by $2zJ$, where $z$ is the
+\emph{lattice coordination number}, the number of neighbors that each site on the lattice has. Single-spin-dynamics
+also guarantees ergodicity.
+
+The Metropolis algorithm for the Ising model with single-spin-flip dynamics is characterized by a set of acceptance ratios
+defined as
+\begin{equation}
+A(\mu \rightarrow \nu) = \left\{\begin{matrix}
+e^{-\beta(E_{\nu} - E_{\mu})} & if E_{\nu} - E_{\mu} > 0\\
+1 & otherwise.
+\end{matrix}\right.
+\end{equation}
+
+That is, we always accept transitions to equal or lower energy states. If the selected state has a higher energy, we
+accept it with probability $e^{-\beta(E_{\nu} - E_{\mu})}$.
+
+The selection probabilities $g(\mu \rightarrow \nu)$ for each of the possible states (ones where only a single spin has
+been flipped) are all equal, and the selection probabilities for every other state are zero. For a lattice with $N$ sites,
+there are only $N$ possible new states so the selection probabilities for those new states are simply
+$$
+g(\mu \rightarrow \nu) = \frac{1}{N}
+$$
+The condition of detailed balance then requires
+$$
+\frac{P(\mu \rightarrow \nu)}{P(\nu \rightarrow \mu)}
+= \frac{g(\mu \rightarrow \nu)A(\mu \rightarrow \nu)}{g(\nu \rightarrow \mu)A(\nu \rightarrow \mu)}
+= \frac{A(\mu \rightarrow \nu)}{A(\nu \rightarrow \mu)}
+= e^{-\beta(E_{\nu} - E_{\mu})}
+$$
+Suppose that for two states $\mu$ and $\nu$, $\mu$ has the lower energy and $\nu$ has the higher energy.
+In other words, $E_{\nu} - E_{\mu} > 0$. From our detailed balance condition, we can see that this means
+that $A(\nu \rightarrow \mu)$ is larger than $A(\mu \rightarrow \nu)$. So, we set $A(\nu \rightarrow \mu)$ equal
+to one and, therefore, $A(\mu \rightarrow \nu)$ must be given by $e^{-\beta(E_{\nu} - E_{\mu})}$.
 
 \end{document}
