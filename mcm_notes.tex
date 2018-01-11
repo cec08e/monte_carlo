@@ -604,4 +604,39 @@ In other words, $E_{\nu} - E_{\mu} > 0$. From our detailed balance condition, we
 that $A(\nu \rightarrow \mu)$ is larger than $A(\mu \rightarrow \nu)$. So, we set $A(\nu \rightarrow \mu)$ equal
 to one and, therefore, $A(\mu \rightarrow \nu)$ must be given by $e^{-\beta(E_{\nu} - E_{\mu})}$.
 
+\subsubsection{Implementation}
+Implementation of the Metropolis algorithm for the Ising model with $B = 0$ can
+be broken down into the following steps:
+
+\begin{itemize}
+\item Creation of an integer variable array to serve as a lattice, wherein
+each of $N$ elements can only take on the values $\pm1$. Typically, periodic
+boundary conditions are applied.
+\item Choice of initial conditions and temperature. Commonly, the ground state at $T = 0$
+is chosen as an initial state, or possibly a random orientation of spins ($T = \infty$) in chosen initially.
+Sometimes a chain of convenient states may be chosen such that the initial state of each simulation is the
+final state of the previous simulation.
+\item Start the simulation: generate a new state in which a random spin is flipped. Calculate the
+change in energy between the new and old state and then apply the acceptance ratio. If the new state is chosen,
+update the lattice.
+\item Repeat the last step until the simulation has come to equilibrium.
+\end{itemize}
+
+\subsection{Equilibration}
+To answer questions about our simulation, we must run the simulation until the system
+reach equilibrium. This requires us to run our simulation for the \emph{equilibration time} $\tau_{eq}$.
+Once we reach equilibrium, we measure our quantity of interest for some period of time and then take the average
+to evaluate the estimator.
+
+We have defined equilibrium to mean that the average probability of finding the system
+in a state $\mu$ is proportional to that state's Boltzmann weight $e^{\beta E_{\mu}}$. Equilibrium
+may be determined qualitatively, but this is problematic if there is a possibility that the system will
+first become "stuck" in a \emph{local energy minimum} as opposed to the \emph{global
+energy minimum}. One common way to avoid this problem is to determine the equilibration
+time by performing the simulation several times with different starting conditions (e.g. $T = 0$ and
+$T = \infty$, or different random initial configurations) and observing the behavior of some
+measured quantitity (e.g. magnetization or energy).
+
+The time to reach equilibrium, or any other time measurement for that matter, is typically measured in
+\emph{sweeps} - a sweep being defined by $N$ Monte Carlo steps over a lattice of size $N$.
 \end{document}
