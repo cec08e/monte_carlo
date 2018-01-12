@@ -2,6 +2,7 @@ from __future__ import print_function
 from random import choice, randint, random
 from numpy import exp
 import logging
+from matplotlib import pyplot, colors
 
 
 class Ising2D(object):
@@ -38,46 +39,77 @@ class Ising2D(object):
                 # align all spins along +z
                 self.lattice = [[1 for i in range(self.columns)] for j in range(self.rows)]
 
-    def simulate(self, T = 0):
-        # Possible positive delta_E values are 2J and 4J only.
+    def simulate(self, max_steps, T = 0):
+        # Possible positive delta_E values are 4J and 8J only.
         # Therefore, our possible acceptance ratios for delta_E > 0 are
-        self.min_positive = 2*J
+        self.min_positive = 4*self.J
         self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
         logging.info('Starting simulation.')
-        for i in range(1000):
+        for i in range(max_steps):
             self.step()
 
     def step(self):
         logging.info("Step " + str(self.step_num))
         # Select a new state by randomly choosing a spin to flip
         chosen_site_row = randint(0, self.rows - 1)
-        chosen_site_col = randint(0, self.colums - 1)
+        chosen_site_col = randint(0, self.columns - 1)
         logging.info("Site selected: " + str((chosen_site_row, chosen_site_col)))
         # Calculate the difference in energy between new and old state
         # Using the summation trick of Newman, Barkema (equation 3.10)
-        delta_E = 2*self.J*self.lattice[chosen_site]*(self.lattice[(chosen_site+1)%self.lat_size] + self.lattice[(chosen_site-1)%self.lat_size])
+        delta_E = self.calc_delta_E(chosen_site_row, chosen_site_col)
         logging.info("Delta E: " + str(delta_E))
-        if (delta_E > 0) and (random() > self.accept_ratio):
-            # Accept the move with A = exp[-beta*delta_E]
-            logging.info("Transition rejected.")
+        if delta_E > 0:
+            rand = random()
+            if delta_E > self.min_positive:
+                if rand > self.accept_ratios[1]:
+                    # Accept the move with A = exp[-beta*delta_E]
+                    logging.info("Transition rejected.")
+                else:
+                    logging.info("Transition accepted.")
+                    self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
+            elif rand > self.accept_ratios[0]:
+                logging.info("Transition rejected.")
+            else:
+                logging.info("Transition accepted.")
+                self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
         else:
             # Accept the move with A = 1
             logging.info("Transition accepted.")
-            self.lattice[chosen_site] = self.lattice[chosen_site]*-1
+            self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
         self.step_num += 1
+
+    def calc_delta_E(self, row, col):
+        # neighbor_sum is sum of nearest neighbor spin values
+        neighbor_sum = self.lattice[(row-1)%self.rows][col] # north neighbor
+        neighbor_sum += self.lattice[(row+1)%self.rows][col] # south neighbor
+        neighbor_sum += self.lattice[row][(col-1)%self.columns] # west neighbor
+        neighbor_sum += self.lattice[row][(col+1)%self.columns] # east neighbor
+        return 2*self.J*self.lattice[row][col]*neighbor_sum
 
 
     def print_lattice(self):
-        for spin in self.lattice:
-            if spin > 0:
-                print('^', sep="", end="")
-            else:
-                print('v',sep="", end="")
-        print("")
+        for row in self.lattice:
+            for spin in row:
+                if spin > 0:
+                    print('^', sep="", end="")
+                else:
+                    print('v',sep="", end="")
+            print("")
+
+    def visualize_lattice(self):
+        norm = colors.Normalize(vmin=-1, vmax=1)
+        cmap = colors.ListedColormap(['white','black'])
+        #bounds=[-2,0,.1,2]
+        #norm = colors.BoundaryNorm(bounds, cmap.N)
+
+        pyplot.imshow(self.lattice, cmap=cmap, norm=norm)
+        pyplot.show()
 
 if __name__ == "__main__":
     logging.basicConfig(filename="ising2d.log", level=logging.INFO, format='%(message)s')
-    lat = Ising1D(20, init_T=0)
+    lat = Ising2D(100, 100, init_T=0)
+    #lat.print_lattice()
+    #lat.visualize_lattice()
+    lat.simulate(max_steps = 10000000, T=2.4)
     lat.print_lattice()
-    lat.simulate(T=2.4)
-    lat.print_lattice()
+    lat.visualize_lattice()

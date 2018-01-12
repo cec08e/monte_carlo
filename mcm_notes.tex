@@ -639,4 +639,63 @@ measured quantitity (e.g. magnetization or energy).
 
 The time to reach equilibrium, or any other time measurement for that matter, is typically measured in
 \emph{sweeps} - a sweep being defined by $N$ Monte Carlo steps over a lattice of size $N$.
+
+\subsection{Measurement}
+Once we reach equilibrium, we are then concerned with calculating a quantity of interest.
+For the Ising model, a couple of example quantities are:
+\begin{itemize}
+\item Energy: best done by calculating the energy at some initial time, then keeping track of
+the energy changes made from state to state. Average to find estimator of internal energy.
+$$E_{\nu} = E_{\mu} + \Delta E$$
+\item Magnetization: best done by summing all spins at some initial time, then keeping track
+of spin changes from state to state.
+$$M_{\nu} = M_{\mu} + \Delta M = M_{\mu} + 2s_{k}^{\nu}$$
+where $s_{k}^{\nu}$ is the value of the flipped spin in the new state. Average to find
+estimator of average magnetization.
+\item Specific heat
+$$c = \frac{\beta^{2}}{N}(\left \langle E^{2} \right \rangle - \left \langle E \right \rangle^{2})$$
+\item Magnetic susceptibility
+$$\chi = \beta N(\left \langle m^{2} \right \rangle - \left \langle m \right \rangle^{2})$$
+\end{itemize}
+
+In order to obtain an accurate estimation of the expectation value for a desired quantity,
+we need to determine how long to record measurements and at what intervals. For this we require a measure of
+the \emph{correlation time} $\tau$ - a measure of how long it takes the system to transition from
+one state to a significantly different state. It is generally safe to assume the correlation time
+is shorter than the equilibration time, and therefore it is generally safe to measure for at least
+as long as it takes to come to equilibrium but this is likely way more time than necessary.
+
+\subsubsection{Autocorrelation functions}
+To get a tighter estimate of the required correlation time for a particular property,
+we can calculate the \emph{time-displaced autocorrelation} function. As an example,
+the time-displaced autocorrelation function for magnetization is given by
+$$
+\begin{aligned}
+\chi(t) &= \int dt'[m(t') - \left \langle m \right \rangle][m(t' + t) - \left \langle m \right \rangle] \\
+&= \int dt' [m(t')m(t' + t) - \left \langle m \right \rangle^{2}]
+\end{aligned}
+$$
+where $m(t)$ is the instantaneous value of magnetization at time $t$ and $\left \langle m \right \rangle$ is the
+average value. This function gives us a measure of the correlation of a quantity at two different times,
+separated by time $t$.
+
+Our goal in calculating the autocorrelation function is to determine at what time scales the correlation drops off -
+this gives us a measure of the correlation time $\tau$. The autocorrelation function is expected to fall off
+at long times as
+$$\chi(t) \propto e^{-t/\tau}$$
+In order to draw independent samples, we should sample over intervals of more than one correlation time. Statistical
+independence is defined to be samples drawn at intervals of $2\tau$. After equilibration, to make $N$ independent
+measurements of some property, we'd need to run our simulation for approximately $2N\tau$ additional steps. In
+general, if a run lasts time $t_{max}$, then we can obtain $n$ independent measurements where
+$n$ is on the order of
+$$n = \frac{t_{max}}{2\tau}$$
+It is common to sample at much tighter intervals during the run (e.g. one sweep) in order to have all the data necessary to
+calculate $\tau$ and select samples accordingly.
+
+Another alternative approach is to calculate the \emph{integrated correlation time}, given by
+$$\int_{0}^{\infty} \frac{\chi(t)}{\chi(0)}dt = \int_{0}^{\infty}e^{-t/\tau}dt = \tau$$
+
+See book for FFT method for autocorrelation function calculation.
+
+
 \end{document}
