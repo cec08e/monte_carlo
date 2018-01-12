@@ -47,6 +47,8 @@ class Ising2D(object):
         logging.info('Starting simulation.')
         for i in range(max_steps):
             self.step()
+            if self.step_num in [0,100000,200000,400000,600000,1000000,2000000,4000000]:
+                self.visualize_lattice()
 
     def step(self):
         logging.info("Step " + str(self.step_num))
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     logging.basicConfig(filename="ising2d.log", level=logging.INFO, format='%(message)s')
     lat = Ising2D(100, 100, init_T=0)
     #lat.print_lattice()
-    #lat.visualize_lattice()
+    lat.visualize_lattice()
     lat.simulate(max_steps = 10000000, T=2.4)
     lat.print_lattice()
     lat.visualize_lattice()
