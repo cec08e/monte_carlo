@@ -14,7 +14,6 @@ class Ising2D(object):
         self.bc = bc
         self.B = B
         self.J = J
-        self.step_num = 1
         logging.info('**************************')
         logging.info('Creating a 2D lattice with ' + str(self.lat_size) + ' sites.')
         logging.info('Rows: ' + str(self.rows))
@@ -27,6 +26,7 @@ class Ising2D(object):
 
 
     def initialize(self, init_T = 0):
+        self.step_num = 1 # initialize step count
         # If T = 0, align all spins to ground state
         if init_T:
             # Assume T large enough to produce random spin state
@@ -38,17 +38,29 @@ class Ising2D(object):
             else:
                 # align all spins along +z
                 self.lattice = [[1 for i in range(self.columns)] for j in range(self.rows)]
+        self.mag_vals = []
+        self.energy_vals = []
 
-    def simulate(self, max_steps, T = 0):
+    def simulate(self, max_steps, T = 0, calc_mag = True, calc_E = True):
+        # If calc_mag or calc_E are true, magnetization and energy are calculated
+        # and recorded over every sweep interval.
         # Possible positive delta_E values are 4J and 8J only.
         # Therefore, our possible acceptance ratios for delta_E > 0 are
         self.min_positive = 4*self.J
         self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
+        #mag =    # initial magnetization
+        #energy =  # initial energy
         logging.info('Starting simulation.')
         for i in range(max_steps):
             self.step()
-            if self.step_num in [0,100000,200000,400000,600000,1000000,2000000,4000000]:
-                self.visualize_lattice()
+            #if self.step_num in [0,100000,200000,400000,600000,1000000,2000000,4000000]:
+            #    self.visualize_lattice()
+            #if self.num_steps % self.lat_size == 0:
+                # We've completed another sweep
+                # Very costly check - change condition
+                #TO DO
+                #pass
+
 
     def step(self):
         logging.info("Step " + str(self.step_num))
@@ -79,6 +91,8 @@ class Ising2D(object):
             logging.info("Transition accepted.")
             self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
         self.step_num += 1
+
+
 
     def calc_delta_E(self, row, col):
         # neighbor_sum is sum of nearest neighbor spin values
@@ -112,6 +126,6 @@ if __name__ == "__main__":
     lat = Ising2D(100, 100, init_T=0)
     #lat.print_lattice()
     lat.visualize_lattice()
-    lat.simulate(max_steps = 10000000, T=2.4)
-    lat.print_lattice()
+    lat.simulate(max_steps = 100000, T=2.4)
+    #lat.print_lattice()
     lat.visualize_lattice()
