@@ -31,20 +31,15 @@ class Ising2D(object):
         if init_T:
             # Assume T large enough to produce random spin state
             self.lattice = [[choice([-1,1]) for i in range(self.columns)] for j in range(self.rows)]
-            self.mag = self.calc_magnetization()
         else:
             if self.B < 0:
                 # align all spins along -z
                 self.lattice = [[-1 for i in range(self.columns)] for j in range(self.rows)]
-                self.mag = -1*lat_size
             else:
                 # align all spins along +z
                 self.lattice = [[1 for i in range(self.columns)] for j in range(self.rows)]
-                self.mag = self.lat_size
-        self.energy = self.calc_energy()
-
-        self.mag_vals = [self.mag]
-        self.energy_vals = [self.energy]
+        self.mag_vals = []
+        self.energy_vals = []
 
     def simulate(self, max_steps, T = 0, calc_mag = True, calc_E = True):
         # If calc_mag or calc_E are true, magnetization and energy are calculated
@@ -52,22 +47,33 @@ class Ising2D(object):
         # Possible positive delta_E values are 4J and 8J only.
         # Therefore, our possible acceptance ratios for delta_E > 0 are
         self.min_positive = 4*self.J
+        if T == 0:
+            T = .00001
         self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
-        mag = self.calc_magnetization()    # initial magnetization
-        energy =  self.calc_energy() # initial energy
+        # Calculate initial magnetization and energy values
+        self.mag = self.calc_magnetization()    # initial magnetization
+        self.energy =  self.calc_energy() # initial energy
+        self.mag_vals.append(self.mag/self.lat_size)
+        self.energy_vals.append(self.energy/self.lat_size)
         logging.info('Starting simulation.')
         for i in range(max_steps):
             self.step()
             #if self.step_num in [0,100000,200000,400000,600000,1000000,2000000,4000000]:
             #    self.visualize_lattice()
-            #if self.num_steps % self.lat_size == 0:
-                # We've completed another sweep
-                # Very costly check - change condition
-                #TO DO
-                #pass
+
 
     def calc_energy(self):
         # Calculate the instantaneous energy of the lattice
+        # To sum over nearest neighbors and avoid double-counting,
+        # we sum over all sites and only calc east and south neighbors.
+        energy = 0
+        for i in range(self.rows):
+            for j in range(self.columns):
+                energy += -self.J*self.lattice[i][j]*(self.lattice[i][(j+1)%self.columns] + self.lattice[(i+1)%self.rows][j])
+        logging.info("Initial energy: " + str(energy))
+        return energy
+
+
 
 
     def calc_magnetization(self):
@@ -76,39 +82,56 @@ class Ising2D(object):
         for row in self.lattice:
             for spin in row:
                 mag += spin
+        logging.info("Initial magnetization: " + str(mag))
         return mag
 
 
     def step(self):
-        logging.info("Step " + str(self.step_num))
+        #logging.info("Step " + str(self.step_num))
         # Select a new state by randomly choosing a spin to flip
         chosen_site_row = randint(0, self.rows - 1)
         chosen_site_col = randint(0, self.columns - 1)
-        logging.info("Site selected: " + str((chosen_site_row, chosen_site_col)))
+        #logging.info("Site selected: " + str((chosen_site_row, chosen_site_col)))
         # Calculate the difference in energy between new and old state
         # Using the summation trick of Newman, Barkema (equation 3.10)
         delta_E = self.calc_delta_E(chosen_site_row, chosen_site_col)
-        logging.info("Delta E: " + str(delta_E))
+        #logging.info("Delta E: " + str(delta_E))
+        accept_flag = False
         if delta_E > 0:
             rand = random()
             if delta_E > self.min_positive:
                 if rand > self.accept_ratios[1]:
                     # Accept the move with A = exp[-beta*delta_E]
-                    logging.info("Transition rejected.")
+                    #logging.info("Transition rejected.")
+                    pass
                 else:
-                    logging.info("Transition accepted.")
+                    #logging.info("Transition accepted.")
+                    accept_flag = True
                     self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
             elif rand > self.accept_ratios[0]:
-                logging.info("Transition rejected.")
+                #logging.info("Transition rejected.")
+                pass
             else:
-                logging.info("Transition accepted.")
+                #logging.info("Transition accepted.")
+                accept_flag = True
                 self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
         else:
             # Accept the move with A = 1
-            logging.info("Transition accepted.")
+            #logging.info("Transition accepted.")
+            accept_flag = True
             self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
+        # Update and record modified magnetization and energy values
+        # Old values are stored in self.energy_vals[self.step_num-1] and self.mag_vals[self.step_num-1]
+        if accept_flag:
+            self.energy = self.energy + delta_E
+            self.mag = self.mag + 2*self.lattice[chosen_site_row][chosen_site_col]
+
+
+        if self.step_num%self.lat_size == 0:
+            self.energy_vals.append(self.energy/self.lat_size) # record energy per site
+            self.mag_vals.append(self.mag/self.lat_size)   # record magnetization per site
+
         self.step_num += 1
-        # TO DO: Record modified magnetization and energy values
 
 
 
@@ -139,11 +162,27 @@ class Ising2D(object):
         pyplot.imshow(self.lattice, cmap=cmap, norm=norm)
         pyplot.show()
 
+    def plot_mag_energy_per_site(self):
+        print("Energy vals: ", self.energy_vals)
+        print("Mag vals: ", self.mag_vals)
+
+        pyplot.plot([i for i in range(len(self.energy_vals))],self.energy_vals, 'r') # plot energy per site
+        pyplot.plot([i for i in range(len(self.mag_vals))],self.mag_vals, 'b') # plot magnetization per site
+        pyplot.ylabel('Energy (red) and magnetization (blue) per site')
+        pyplot.xlabel('Steps per site')
+        pyplot.show()
+
 if __name__ == "__main__":
     logging.basicConfig(filename="ising2d.log", level=logging.INFO, format='%(message)s')
-    lat = Ising2D(100, 100, init_T=0)
+    #lat = Ising2D(100, 100, init_T=0)
+    # Exp 1
     #lat.print_lattice()
-    lat.visualize_lattice()
-    lat.simulate(max_steps = 100000, T=2.4)
+    #lat.visualize_lattice()
+    #lat.simulate(max_steps = 100000, T=2.4)
     #lat.print_lattice()
-    lat.visualize_lattice()
+    #lat.visualize_lattice()
+
+    # Exp 2
+    lat = Ising2D(100, 100, init_T=100)
+    lat.simulate(max_steps=100000000, T=2.0)
+    lat.plot_mag_energy_per_site()
