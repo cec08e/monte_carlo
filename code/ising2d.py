@@ -31,15 +31,20 @@ class Ising2D(object):
         if init_T:
             # Assume T large enough to produce random spin state
             self.lattice = [[choice([-1,1]) for i in range(self.columns)] for j in range(self.rows)]
+            self.mag = self.calc_magnetization()
         else:
             if self.B < 0:
                 # align all spins along -z
                 self.lattice = [[-1 for i in range(self.columns)] for j in range(self.rows)]
+                self.mag = -1*lat_size
             else:
                 # align all spins along +z
                 self.lattice = [[1 for i in range(self.columns)] for j in range(self.rows)]
-        self.mag_vals = []
-        self.energy_vals = []
+                self.mag = self.lat_size
+        self.energy = self.calc_energy()
+
+        self.mag_vals = [self.mag]
+        self.energy_vals = [self.energy]
 
     def simulate(self, max_steps, T = 0, calc_mag = True, calc_E = True):
         # If calc_mag or calc_E are true, magnetization and energy are calculated
@@ -48,8 +53,8 @@ class Ising2D(object):
         # Therefore, our possible acceptance ratios for delta_E > 0 are
         self.min_positive = 4*self.J
         self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
-        #mag =    # initial magnetization
-        #energy =  # initial energy
+        mag = self.calc_magnetization()    # initial magnetization
+        energy =  self.calc_energy() # initial energy
         logging.info('Starting simulation.')
         for i in range(max_steps):
             self.step()
@@ -60,6 +65,18 @@ class Ising2D(object):
                 # Very costly check - change condition
                 #TO DO
                 #pass
+
+    def calc_energy(self):
+        # Calculate the instantaneous energy of the lattice
+
+
+    def calc_magnetization(self):
+        # Calculate the instantaneous magnetization of the lattice
+        mag = 0
+        for row in self.lattice:
+            for spin in row:
+                mag += spin
+        return mag
 
 
     def step(self):
@@ -91,6 +108,7 @@ class Ising2D(object):
             logging.info("Transition accepted.")
             self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
         self.step_num += 1
+        # TO DO: Record modified magnetization and energy values
 
 
 
