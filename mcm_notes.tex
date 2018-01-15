@@ -777,12 +777,26 @@ by black squares. }
   \includegraphics[width=65mm]{figures/mag_energy_4_100100.png}
 }
 \caption{Magnetization (blue) and internal energy (red) per site of $100 \times 100$
-2D Ising model with J=1. Simulation is initialized with random configuration
+2D Ising model with $J=1$. Simulation is initialized with random configuration
 ($T = \infty$) and cooled to $T=2.0$. Four separate trials are presented here.}
 \end{figure}
 
 % the scale of the autocorrelation has to be much smaller than sample size. Otherwise
 % as t increases X(t) is less accurate (fewer samples to integrate over)
+
+\begin{figure}
+%\hspace{0mm}
+\subfloat[$20 \times 20$ lattice, 25000 sweeps]{
+  \includegraphics[width=65mm]{figures/autocorrelation_2020_10000000.png}
+}
+\subfloat[$50 \times 50$ lattice, 40000 sweeps]{
+  \includegraphics[width=65mm]{figures/autocorrelation_5050_100000000.png}
+}
+
+\caption{Magnetization autocorrelation function $\chi(t)$ for 2D Ising Model with
+$J=1$. Simulation is initialized with spin-up configuration
+($T = 0$) and heated to $T=2.4$.}
+\end{figure}
 
 
 
