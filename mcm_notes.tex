@@ -697,5 +697,94 @@ $$\int_{0}^{\infty} \frac{\chi(t)}{\chi(0)}dt = \int_{0}^{\infty}e^{-t/\tau}dt =
 
 See book for FFT method for autocorrelation function calculation.
 
+\section{2D Ising Results}
+In this section, I record some results from trial simulations using a 2D Ising implementation in Python. The trials chosen primarily
+reflect those shown in the book (Chapter 3) for comparison.
+\begin{figure}
+\centering
+\subfloat[Initial]{
+  \includegraphics[width=65mm]{figures/ising2d_0.png}
+}
+\subfloat[10 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_100000.png}
+}
+\hspace{0mm}
+\subfloat[20 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_200000.png}
+}
+\subfloat[40 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_400000.png}
+}
+\hspace{0mm}
+\subfloat[60 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_600000.png}
+}
+\subfloat[100 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_1000000.png}
+}
+
+\end{figure}
+\begin{figure} \ContinuedFloat
+%\hspace{0mm}
+\subfloat[200 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_2000000.png}
+}
+\subfloat[400 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_4000000.png}
+}
+\hspace{0mm}
+\subfloat[1000 sweeps]{
+  \includegraphics[width=65mm]{figures/ising2d_10000000.png}
+}
+\caption{$100 \times 100$ 2D Ising model with $J=1$ coming to equilibrium from
+initial temperature $T = 0$ to final temperature $T = 2.4$. Spin up is represented
+by black squares. }
+\end{figure}
+
+\begin{figure}
+%\hspace{0mm}
+\subfloat[Trial 1]{
+  \includegraphics[width=65mm]{figures/mag_energy_1_3030.png}
+}
+\subfloat[Trial 2]{
+  \includegraphics[width=65mm]{figures/mag_energy_2_3030.png}
+}
+\hspace{0mm}
+\subfloat[Trial 3]{
+  \includegraphics[width=65mm]{figures/mag_energy_3_3030.png}
+}
+\subfloat[Trial 4]{
+  \includegraphics[width=65mm]{figures/mag_energy_4_3030.png}
+}
+\caption{Magnetization (blue) and internal energy (red) per site of $30 \times 30$
+2D Ising model with J=1. Simulation is initialized with random configuration
+($T = \infty$) and cooled to $T=2.0$. Four separate trials are presented here.}
+\end{figure}
+
+\begin{figure}
+%\hspace{0mm}
+\subfloat[Trial 1]{
+  \includegraphics[width=65mm]{figures/mag_energy_1_100100.png}
+}
+\subfloat[Trial 2]{
+  \includegraphics[width=65mm]{figures/mag_energy_2_100100.png}
+}
+\hspace{0mm}
+\subfloat[Trial 3]{
+  \includegraphics[width=65mm]{figures/mag_energy_3_100100.png}
+}
+\subfloat[Trial 4]{
+  \includegraphics[width=65mm]{figures/mag_energy_4_100100.png}
+}
+\caption{Magnetization (blue) and internal energy (red) per site of $100 \times 100$
+2D Ising model with J=1. Simulation is initialized with random configuration
+($T = \infty$) and cooled to $T=2.0$. Four separate trials are presented here.}
+\end{figure}
+
+% the scale of the autocorrelation has to be much smaller than sample size. Otherwise
+% as t increases X(t) is less accurate (fewer samples to integrate over)
+
+
+
 
 \end{document}

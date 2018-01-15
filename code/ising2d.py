@@ -1,9 +1,11 @@
 from __future__ import print_function
 from random import choice, randint, random
-from numpy import exp
+from numpy import exp, power
 import logging
 from matplotlib import pyplot, colors
-
+from functools import reduce
+from scipy.integrate import simps
+from scipy.optimize import curve_fit
 
 class Ising2D(object):
 
@@ -163,8 +165,8 @@ class Ising2D(object):
         pyplot.show()
 
     def plot_mag_energy_per_site(self):
-        print("Energy vals: ", self.energy_vals)
-        print("Mag vals: ", self.mag_vals)
+        #print("Energy vals: ", self.energy_vals)
+        #print("Mag vals: ", self.mag_vals)
 
         pyplot.plot([i for i in range(len(self.energy_vals))],self.energy_vals, 'r') # plot energy per site
         pyplot.plot([i for i in range(len(self.mag_vals))],self.mag_vals, 'b') # plot magnetization per site
@@ -172,17 +174,49 @@ class Ising2D(object):
         pyplot.xlabel('Steps per site')
         pyplot.show()
 
+    def autocorrelate(self, sweeps):
+        # Calc and plot magnetization autocorrelation function as a function of sweeps
+        # Average magnetization per site
+        avg_mag = reduce((lambda x,y: x+y), self.mag_vals)/len(self.mag_vals)
+        print("Average magnetization per site: ", avg_mag)
+        avg_mag_sq = power(avg_mag, 2)
+
+        chi_0 = self.autocorrelate_int(avg_mag_sq, 0) # Initial autocorrelation function chi(0)
+        x = [i for i in range(sweeps)]
+        y = [self.autocorrelate_int(avg_mag_sq, i, norm=chi_0) for i in range(sweeps)]
+        pyplot.plot(x, y, 'b')
+        pyplot.ylabel('Magnetization autocorrelation $\chi(t)$')
+        pyplot.xlabel('Steps per site')
+
+        # Add exponential fit
+        #params, curve = curve_fit(lambda t,a,b: a*exp(b*t), x, y)
+        #print("a: ", params[0], " and b: ", params[1])
+        #pyplot.plot(x, [params[0]*exp(params[1]*i) for i in x], 'g')
+
+        pyplot.show()
+
+    def autocorrelate_int(self,avg_mag_sq, t, norm = 1):
+        # Performs autocorrelation integral at sweep t
+        # Can only integrate over t'=0 to t'=(self.step_num/self.lat_size)-t ?
+        t_prime = [i for i in range((int(self.step_num/self.lat_size) - t))] # x samples
+        y_samples = [((self.mag_vals[i]*self.mag_vals[i+t]) - avg_mag_sq)/norm for i in range((int(self.step_num/self.lat_size) - t))]
+        return simps(y_samples, t_prime)
+
+
+
 if __name__ == "__main__":
+    # To do: add command line args
     logging.basicConfig(filename="ising2d.log", level=logging.INFO, format='%(message)s')
-    #lat = Ising2D(100, 100, init_T=0)
+    lat = Ising2D(20, 20, init_T=0)
     # Exp 1
     #lat.print_lattice()
     #lat.visualize_lattice()
-    #lat.simulate(max_steps = 100000, T=2.4)
+    lat.simulate(max_steps = 10000000, T=2.4)
     #lat.print_lattice()
     #lat.visualize_lattice()
 
     # Exp 2
-    lat = Ising2D(100, 100, init_T=100)
-    lat.simulate(max_steps=100000000, T=2.0)
-    lat.plot_mag_energy_per_site()
+    #lat = Ising2D(100, 100, init_T=100)
+    #lat.simulate(max_steps=100000000, T=2.0)
+    #lat.plot_mag_energy_per_site()
+    lat.autocorrelate(1000)
