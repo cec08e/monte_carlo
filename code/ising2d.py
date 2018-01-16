@@ -20,6 +20,7 @@ class Ising2D(object):
         logging.info('Creating a 2D lattice with ' + str(self.lat_size) + ' sites.')
         logging.info('Rows: ' + str(self.rows))
         logging.info('Columns: ' + str(self.columns))
+        logging.info('Lattice size: ' + str(self.lat_size))
         logging.info('Initial T: ' + str(init_T))
         logging.info('B: ' + str(self.B))
         logging.info('J: ' + str(J))
@@ -44,6 +45,7 @@ class Ising2D(object):
         self.energy_vals = []
 
     def simulate(self, max_steps, T = 0, calc_mag = True, calc_E = True):
+        # Thought: make max_steps default to equilibration value
         # If calc_mag or calc_E are true, magnetization and energy are calculated
         # and recorded over every sweep interval.
         # Possible positive delta_E values are 4J and 8J only.
@@ -55,9 +57,11 @@ class Ising2D(object):
         # Calculate initial magnetization and energy values
         self.mag = self.calc_magnetization()    # initial magnetization
         self.energy =  self.calc_energy() # initial energy
+        #logging.info("Initial magnetization: " + str(self.mag))
+        #logging.info("Initial energy: " + str(self.energy))
         self.mag_vals.append(self.mag/self.lat_size)
         self.energy_vals.append(self.energy/self.lat_size)
-        logging.info('Starting simulation.')
+        #logging.info('Starting simulation.')
         for i in range(max_steps):
             self.step()
             #if self.step_num in [0,100000,200000,400000,600000,1000000,2000000,4000000]:
@@ -72,7 +76,7 @@ class Ising2D(object):
         for i in range(self.rows):
             for j in range(self.columns):
                 energy += -self.J*self.lattice[i][j]*(self.lattice[i][(j+1)%self.columns] + self.lattice[(i+1)%self.rows][j])
-        logging.info("Initial energy: " + str(energy))
+        #logging.info("Initial energy: " + str(energy))
         return energy
 
 
@@ -84,7 +88,7 @@ class Ising2D(object):
         for row in self.lattice:
             for spin in row:
                 mag += spin
-        logging.info("Initial magnetization: " + str(mag))
+        #logging.info("Initial magnetization: " + str(mag))
         return mag
 
 
@@ -127,6 +131,8 @@ class Ising2D(object):
         if accept_flag:
             self.energy = self.energy + delta_E
             self.mag = self.mag + 2*self.lattice[chosen_site_row][chosen_site_col]
+            #logging.info("New energy: " + str(self.energy))
+            #logging.info("New magnetization: " + str(self.mag))
 
 
         if self.step_num%self.lat_size == 0:
@@ -177,6 +183,7 @@ class Ising2D(object):
     def autocorrelate(self, sweeps):
         # Calc and plot magnetization autocorrelation function as a function of sweeps
         # Average magnetization per site
+        print("mag_vals: ", self.mag_vals)
         avg_mag = reduce((lambda x,y: x+y), self.mag_vals)/len(self.mag_vals)
         print("Average magnetization per site: ", avg_mag)
         avg_mag_sq = power(avg_mag, 2)
@@ -199,19 +206,89 @@ class Ising2D(object):
         # Performs autocorrelation integral at sweep t
         # Can only integrate over t'=0 to t'=(self.step_num/self.lat_size)-t ?
         t_prime = [i for i in range((int(self.step_num/self.lat_size) - t))] # x samples
+        #print("t_primes: ", t_prime)
         y_samples = [((self.mag_vals[i]*self.mag_vals[i+t]) - avg_mag_sq)/norm for i in range((int(self.step_num/self.lat_size) - t))]
         return simps(y_samples, t_prime)
+
+    def spec_heat_v_temp(self, final_temp = 1, temp_step = .1, eq_time = None, cor_time = None):
+        ''' Plots the specific heat per spin vs temperature for
+            lattice. Plot begins with T=0 configuration and plots to final_temp
+            in temp_step intervals.
+
+            First, we calculate the specific heat for the initial configuration.
+            Then,
+            - Simulate transition from T to T + temp_step (equilibration steps required).
+            - Take measurements to find expectation value of spec heat (correlation time required).
+            - Calculate and plot the specific heat.
+            - Repeat steps above until we reach final_temp.
+
+            For example, to calculate specific heat per spin of a 5x5 lattice
+            from T=0 to T=5, we first create the lattice at temp 0.
+            >>> lat = Ising2D(5, 5, init_T=0)
+            Next, we call spec_heat_v_temp with the required parameters.
+            >>> lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 1250, cor_time = 1250)
+            The spec_heat_v_temp function will handle all the required elibration and
+            correlation simulation, but these step numbers must be supplied. For the
+            5x5 example, a generous equilibration and correlation time is on the order
+            of 50 sweeps (or 1250 steps). This can be determined qualitatively
+            from the autocorrelation graph. Specific heat will peak and change
+            sharply because discrete energy shifts are large compared to overall energy.
+
+        '''
+
+        # Begin by calculating and plotting the specific heat for the initial
+        # lattice configuration.
+        # c = (1/NT^2)(<E^2> - <E>^2)
+        # Necessarily, our first plot point is 0
+        c_vals = [0]
+        temp_vals = [0]
+        curr_temp = 0
+
+        while curr_temp < final_temp:
+            curr_temp += temp_step
+            self.simulate(eq_time, T = curr_temp, calc_mag = False, calc_E = False)
+            energy_measurements = self.measure_energy(cor_time, curr_temp)
+            avg_energy = reduce(lambda x,y: x+y, [item[0] for item in energy_measurements])/len(energy_measurements)
+            avg_energy_sq = reduce(lambda x,y: x+y, [item[1] for item in energy_measurements])/len(energy_measurements)
+            c_vals.append((avg_energy_sq - power(avg_energy,2))/(self.lat_size*(power(curr_temp,2))))
+            temp_vals.append(curr_temp)
+            print("Current temp: ", curr_temp)
+
+        pyplot.plot(temp_vals, c_vals, 'g')
+        pyplot.ylabel('Specific heat per spin $c$')
+        pyplot.xlabel('Temperature')
+        pyplot.show()
+
+
+    def measure_energy(self, cor_time, curr_temp, num = 15):
+        # Make energy measurements, num times
+        energy_measurements = []
+
+        for i in range(num):
+            self.simulate(cor_time, T = curr_temp, calc_mag = False, calc_E = False)
+            energy = self.calc_energy()
+            energy_measurements.append([energy, power(energy,2)])
+
+        #print(energy_measurements)
+        return energy_measurements
+
+    def mag_v_temp(self):
+        ''' Plots the mean magnetization per spin vs temperature for
+            lattice. Plot begins with T=0 configuration and plots to final_temp
+            in temp_step intervals.
+        '''
+
 
 
 
 if __name__ == "__main__":
     # To do: add command line args
-    logging.basicConfig(filename="ising2d.log", level=logging.INFO, format='%(message)s')
-    lat = Ising2D(20, 20, init_T=0)
+    logging.basicConfig(filename="ising2d.log", filemode='w',level=logging.INFO, format='%(message)s')
+    #lat = Ising2D(20, 20, init_T=0)
     # Exp 1
     #lat.print_lattice()
     #lat.visualize_lattice()
-    lat.simulate(max_steps = 10000000, T=2.4)
+    #lat.simulate(max_steps = 10000000, T=2.4)
     #lat.print_lattice()
     #lat.visualize_lattice()
 
@@ -219,4 +296,12 @@ if __name__ == "__main__":
     #lat = Ising2D(100, 100, init_T=100)
     #lat.simulate(max_steps=100000000, T=2.0)
     #lat.plot_mag_energy_per_site()
-    lat.autocorrelate(1000)
+    #lat.autocorrelate(1000)
+
+
+    lat = Ising2D(10, 10, init_T=0)
+    #lat.simulate(max_steps=10000000, T=2.4)
+    #lat.plot_mag_energy_per_site()
+    #lat.autocorrelate(1000)
+    #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 500000, cor_time = 1000)
+    lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 300000, cor_time = 150000)
