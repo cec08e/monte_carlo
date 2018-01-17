@@ -210,6 +210,55 @@ class Ising2D(object):
         y_samples = [((self.mag_vals[i]*self.mag_vals[i+t]) - avg_mag_sq)/norm for i in range((int(self.step_num/self.lat_size) - t))]
         return simps(y_samples, t_prime)
 
+    def suscept_v_temp(self, final_temp = 1, temp_step = .1, eq_time = None, cor_time = None):
+        ''' Plots the susceptibility vs temperature for
+            lattice. Plot begins with T=0 configuration and plots to final_temp
+            in temp_step intervals.
+
+            First, we calculate the susceptibility for the initial configuration.
+            Then,
+            - Simulate transition from T to T + temp_step (equilibration steps required).
+            - Take measurements to find expectation value of magnetization per spin (correlation time required).
+            - Calculate and plot the susceptibility.
+            - Repeat steps above until we reach final_temp.
+
+            For example, to calculate susceptibility of a 5x5 lattice
+            from T=0 to T=5, we first create the lattice at temp 0.
+            >>> lat = Ising2D(5, 5, init_T=0)
+            Next, we call suscept_v_temp with the required parameters.
+            >>> lat.suscept_v_temp(final_temp = 5, temp_step = .1, eq_time = 1250, cor_time = 1250)
+            The suscept_v_temp function will handle all the required elibration and
+            correlation simulation, but these step numbers must be supplied. For the
+            5x5 example, a generous equilibration and correlation time is on the order
+            of 50 sweeps (or 1250 steps). This can be determined qualitatively
+            from the autocorrelation graph.
+
+        '''
+
+        # Begin by calculating and plotting the susceptibility for the initial
+        # lattice configuration.
+        # chi = (NT)(<m^2> - <m>^2)
+        # Necessarily, our first plot point is 0
+        chi_vals = [0]
+        temp_vals = [0]
+        curr_temp = 0
+
+        while curr_temp < final_temp:
+            curr_temp += temp_step
+            self.simulate(eq_time, T = curr_temp, calc_mag = False, calc_E = False)
+            mag_measurements = self.measure_mag_per_spin(cor_time, curr_temp)
+            avg_mag_per_spin = reduce(lambda x,y: x+y, [item[0] for item in mag_measurements])/len(mag_measurements)
+            avg_mag_per_spin_sq = reduce(lambda x,y: x+y, [item[1] for item in mag_measurements])/len(mag_measurements)
+            chi_vals.append((avg_mag_per_spin_sq - power(avg_mag_per_spin,2))*(self.lat_size*curr_temp))
+            temp_vals.append(curr_temp)
+            print("Current temp: ", curr_temp)
+
+        pyplot.plot(temp_vals, c_vals, 'g')
+        pyplot.ylabel('Susceptibility $\chi$')
+        pyplot.xlabel('Temperature')
+        pyplot.show()
+
+
     def spec_heat_v_temp(self, final_temp = 1, temp_step = .1, eq_time = None, cor_time = None):
         ''' Plots the specific heat per spin vs temperature for
             lattice. Plot begins with T=0 configuration and plots to final_temp
@@ -218,7 +267,7 @@ class Ising2D(object):
             First, we calculate the specific heat for the initial configuration.
             Then,
             - Simulate transition from T to T + temp_step (equilibration steps required).
-            - Take measurements to find expectation value of spec heat (correlation time required).
+            - Take measurements to find expectation value of energy (correlation time required).
             - Calculate and plot the specific heat.
             - Repeat steps above until we reach final_temp.
 
@@ -232,7 +281,7 @@ class Ising2D(object):
             5x5 example, a generous equilibration and correlation time is on the order
             of 50 sweeps (or 1250 steps). This can be determined qualitatively
             from the autocorrelation graph. Specific heat will peak and change
-            sharply because discrete energy shifts are large compared to overall energy.
+            sharply because discrete energy shifts are large compared to overall energy?
 
         '''
 
@@ -272,6 +321,18 @@ class Ising2D(object):
         #print(energy_measurements)
         return energy_measurements
 
+    def measure_mag_per_spin(self, cor_time, curr_temp, num = 15):
+        # Make energy measurements, num times
+        mag_measurements = []
+
+        for i in range(num):
+            self.simulate(cor_time, T = curr_temp, calc_mag = False, calc_E = False)
+            mag = self.calc_mag()/self.lat_size
+            mag_measurements.append([mag, power(mag,2)])
+
+        #print(energy_measurements)
+        return mag_measurements
+
     def mag_v_temp(self):
         ''' Plots the mean magnetization per spin vs temperature for
             lattice. Plot begins with T=0 configuration and plots to final_temp
@@ -299,9 +360,10 @@ if __name__ == "__main__":
     #lat.autocorrelate(1000)
 
 
-    lat = Ising2D(10, 10, init_T=0)
-    #lat.simulate(max_steps=10000000, T=2.4)
+    lat = Ising2D(5, 5, init_T=0)
+    #lat.simulate(max_steps=100000, T=100)
     #lat.plot_mag_energy_per_site()
-    #lat.autocorrelate(1000)
+    #lat.autocorrelate(100)
     #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 500000, cor_time = 1000)
-    lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 300000, cor_time = 150000)
+    #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 300000, cor_time = 150000)
+    lat.suscept_v_temp(final_temp=5, temp_step=.1, eq_time=30000, cor_time=1000)
