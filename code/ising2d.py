@@ -129,6 +129,7 @@ class Ising2D(object):
         # Update and record modified magnetization and energy values
         # Old values are stored in self.energy_vals[self.step_num-1] and self.mag_vals[self.step_num-1]
         if accept_flag:
+            #logging.info("Transition accepted.")
             self.energy = self.energy + delta_E
             self.mag = self.mag + 2*self.lattice[chosen_site_row][chosen_site_col]
             #logging.info("New energy: " + str(self.energy))
@@ -149,7 +150,8 @@ class Ising2D(object):
         neighbor_sum += self.lattice[(row+1)%self.rows][col] # south neighbor
         neighbor_sum += self.lattice[row][(col-1)%self.columns] # west neighbor
         neighbor_sum += self.lattice[row][(col+1)%self.columns] # east neighbor
-        return 2*self.J*self.lattice[row][col]*neighbor_sum
+        #return 2*self.J*self.lattice[row][col]*neighbor_sum
+        return self.J*self.lattice[row][col]*neighbor_sum
 
 
     def print_lattice(self):
@@ -247,13 +249,18 @@ class Ising2D(object):
             curr_temp += temp_step
             self.simulate(eq_time, T = curr_temp, calc_mag = False, calc_E = False)
             mag_measurements = self.measure_mag_per_spin(cor_time, curr_temp)
+            print("mags: ", [item[0] for item in mag_measurements])
             avg_mag_per_spin = reduce(lambda x,y: x+y, [item[0] for item in mag_measurements])/len(mag_measurements)
+            print("mags squared: ", [item[1] for item in mag_measurements])
             avg_mag_per_spin_sq = reduce(lambda x,y: x+y, [item[1] for item in mag_measurements])/len(mag_measurements)
+            print("<m>: ", avg_mag_per_spin)
+            print("<m^2>: ", avg_mag_per_spin_sq)
+            print("<m>^2: ", power(avg_mag_per_spin, 2))
             chi_vals.append((avg_mag_per_spin_sq - power(avg_mag_per_spin,2))*(self.lat_size*curr_temp))
             temp_vals.append(curr_temp)
             print("Current temp: ", curr_temp)
 
-        pyplot.plot(temp_vals, c_vals, 'g')
+        pyplot.plot(temp_vals, chi_vals, 'g')
         pyplot.ylabel('Susceptibility $\chi$')
         pyplot.xlabel('Temperature')
         pyplot.show()
@@ -321,23 +328,51 @@ class Ising2D(object):
         #print(energy_measurements)
         return energy_measurements
 
-    def measure_mag_per_spin(self, cor_time, curr_temp, num = 15):
+    def measure_mag_per_spin(self, cor_time, curr_temp, num = 1000000):
         # Make energy measurements, num times
         mag_measurements = []
 
         for i in range(num):
             self.simulate(cor_time, T = curr_temp, calc_mag = False, calc_E = False)
-            mag = self.calc_mag()/self.lat_size
-            mag_measurements.append([mag, power(mag,2)])
+            mag = self.calc_magnetization()  # when to divide by lat size?
+            mag_measurements.append([mag/self.lat_size, power(mag,2)/self.lat_size])
 
         #print(energy_measurements)
         return mag_measurements
 
-    def mag_v_temp(self):
+    def mag_v_temp(self,  final_temp = 1, temp_step = .1, eq_time = None, cor_time = None):
         ''' Plots the mean magnetization per spin vs temperature for
             lattice. Plot begins with T=0 configuration and plots to final_temp
             in temp_step intervals.
         '''
+        mag_vals = [1]
+        temp_vals = [0]
+        curr_temp = 0
+
+        while curr_temp < final_temp:
+            curr_temp += temp_step
+            ##logging.info("*****************************")
+            #logging.info("Now trying to come to equilibrium at T=" + str(curr_temp))
+            self.simulate(eq_time, T = curr_temp, calc_mag = False, calc_E = False)
+            mag_measurements = self.measure_mag_per_spin(cor_time, curr_temp)
+            #print("mags: ", [item[0] for item in mag_measurements])
+            avg_mag_per_spin = reduce(lambda x,y: x+y, [item[0] for item in mag_measurements])/len(mag_measurements)
+            #print("Avg mag at temp ", curr_temp, ": ", avg_mag_per_spin)
+            #print("mags squared: ", [item[1] for item in mag_measurements])
+            #avg_mag_per_spin_sq = reduce(lambda x,y: x+y, [item[1] for item in mag_measurements])/len(mag_measurements)
+            #print("<m>: ", avg_mag_per_spin)
+            #print("<m^2>: ", avg_mag_per_spin_sq)
+            #print("<m>^2: ", power(avg_mag_per_spin, 2))
+            #chi_vals.append((avg_mag_per_spin_sq - power(avg_mag_per_spin,2))*(self.lat_size*curr_temp))
+            mag_vals.append(avg_mag_per_spin)
+            temp_vals.append(curr_temp)
+            print("Current temp: ", curr_temp)
+
+        pyplot.plot(temp_vals, mag_vals, 'g')
+        pyplot.ylabel('Magnetization per spin $m$')
+        pyplot.xlabel('Temperature')
+        pyplot.show()
+
 
 
 
@@ -361,9 +396,9 @@ if __name__ == "__main__":
 
 
     lat = Ising2D(5, 5, init_T=0)
-    #lat.simulate(max_steps=100000, T=100)
+    #lat.simulate(max_steps=100000, T=5)
     #lat.plot_mag_energy_per_site()
-    #lat.autocorrelate(100)
+    #lat.autocorrelate(50)
     #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 500000, cor_time = 1000)
     #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 300000, cor_time = 150000)
-    lat.suscept_v_temp(final_temp=5, temp_step=.1, eq_time=30000, cor_time=1000)
+    lat.mag_v_temp(final_temp=5, temp_step=.1, eq_time=50000, cor_time=1)
