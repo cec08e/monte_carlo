@@ -1,6 +1,7 @@
 from __future__ import print_function
-from random import choice, randint, random
+from random import choice, random
 from numpy import exp, power
+from numpy.random import randint
 import logging
 from matplotlib import pyplot, colors
 from functools import reduce
@@ -26,6 +27,7 @@ class Ising2D(object):
         logging.info('J: ' + str(J))
         logging.info('Boundary conditions: ' + self.bc)
         self.initialize(init_T)
+        self.min_positive = 4*self.J
 
 
     def initialize(self, init_T = 0):
@@ -50,17 +52,19 @@ class Ising2D(object):
         # and recorded over every sweep interval.
         # Possible positive delta_E values are 4J and 8J only.
         # Therefore, our possible acceptance ratios for delta_E > 0 are
-        self.min_positive = 4*self.J
+        self.mag_vals = []
+        self.energy_vals = []
+        self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
+
         if T == 0:
             T = .00001
-        self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
         # Calculate initial magnetization and energy values
         self.mag = self.calc_magnetization()    # initial magnetization
         self.energy =  self.calc_energy() # initial energy
         #logging.info("Initial magnetization: " + str(self.mag))
         #logging.info("Initial energy: " + str(self.energy))
-        self.mag_vals.append(self.mag/self.lat_size)
-        self.energy_vals.append(self.energy/self.lat_size)
+        self.mag_vals.append(float(self.mag)/self.lat_size)
+        self.energy_vals.append(float(self.energy)/self.lat_size)
         #logging.info('Starting simulation.')
         for i in range(max_steps):
             self.step()
@@ -104,42 +108,37 @@ class Ising2D(object):
         #logging.info("Delta E: " + str(delta_E))
         accept_flag = False
         if delta_E > 0:
+            #logging.info("Delta E positive.")
             rand = random()
+            #logging.info("random val is " + str(rand))
             if delta_E > self.min_positive:
-                if rand > self.accept_ratios[1]:
-                    # Accept the move with A = exp[-beta*delta_E]
-                    #logging.info("Transition rejected.")
-                    pass
-                else:
-                    #logging.info("Transition accepted.")
+                if rand <= self.accept_ratios[1]:
+                    #logging.info("Accepted. Rand is larger than larger exp.")
                     accept_flag = True
-                    self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
-            elif rand > self.accept_ratios[0]:
-                #logging.info("Transition rejected.")
-                pass
-            else:
-                #logging.info("Transition accepted.")
+                    self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
+            elif rand <= self.accept_ratios[0]:
+                #logging.info("Accepted. Rand is larger than smaller exp.")
                 accept_flag = True
-                self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
+                self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
         else:
             # Accept the move with A = 1
-            #logging.info("Transition accepted.")
+            #logging.info("Accepted.")
             accept_flag = True
-            self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*-1
+            self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
         # Update and record modified magnetization and energy values
         # Old values are stored in self.energy_vals[self.step_num-1] and self.mag_vals[self.step_num-1]
         if accept_flag:
-            #logging.info("Transition accepted.")
+            #logging.info("Accept flag is true.")
             self.energy = self.energy + delta_E
-            self.mag = self.mag + 2*self.lattice[chosen_site_row][chosen_site_col]
+            self.mag = float(self.mag) + 2*float(self.lattice[chosen_site_row][chosen_site_col])
             #logging.info("New energy: " + str(self.energy))
             #logging.info("New magnetization: " + str(self.mag))
 
-
-        if self.step_num%self.lat_size == 0:
-            self.energy_vals.append(self.energy/self.lat_size) # record energy per site
-            self.mag_vals.append(self.mag/self.lat_size)   # record magnetization per site
-
+        self.mag_vals.append(float(self.mag)/self.lat_size)
+        #if self.step_num%self.lat_size == 0:
+        #    self.energy_vals.append(self.energy/self.lat_size) # record energy per site
+        #    self.mag_vals.append(self.mag/self.lat_size)   # record magnetization per site
+        #print(self.mag)
         self.step_num += 1
 
 
@@ -151,7 +150,7 @@ class Ising2D(object):
         neighbor_sum += self.lattice[row][(col-1)%self.columns] # west neighbor
         neighbor_sum += self.lattice[row][(col+1)%self.columns] # east neighbor
         #return 2*self.J*self.lattice[row][col]*neighbor_sum
-        return self.J*self.lattice[row][col]*neighbor_sum
+        return 2*self.J*self.lattice[row][col]*neighbor_sum
 
 
     def print_lattice(self):
@@ -328,7 +327,7 @@ class Ising2D(object):
         #print(energy_measurements)
         return energy_measurements
 
-    def measure_mag_per_spin(self, cor_time, curr_temp, num = 1000000):
+    def measure_mag_per_spin(self, cor_time, curr_temp, num = 450):
         # Make energy measurements, num times
         mag_measurements = []
 
@@ -353,10 +352,26 @@ class Ising2D(object):
             curr_temp += temp_step
             ##logging.info("*****************************")
             #logging.info("Now trying to come to equilibrium at T=" + str(curr_temp))
+            #if curr_temp > 1 and curr_temp < 3:
+            #    self.simulate(eq_time*10, T = curr_temp, calc_mag = False, calc_E = False)
+            #else:
             self.simulate(eq_time, T = curr_temp, calc_mag = False, calc_E = False)
-            mag_measurements = self.measure_mag_per_spin(cor_time, curr_temp)
-            #print("mags: ", [item[0] for item in mag_measurements])
-            avg_mag_per_spin = reduce(lambda x,y: x+y, [item[0] for item in mag_measurements])/len(mag_measurements)
+
+
+            #mag_measurements = self.measure_mag_per_spin(cor_time, curr_temp)
+            #avg_mag_per_spin = reduce(lambda x,y: x+y, [item[0] for item in mag_measurements])/len(mag_measurements)
+            #if curr_temp > 1 and curr_temp < 3:
+            #    if curr_temp > 1.5 and curr_temp < 2.5:
+            #        self.simulate(cor_time*4, T = curr_temp, calc_mag = False, calc_E = False)
+            #    else:
+            #        self.simulate(cor_time*2, T = curr_temp, calc_mag = False, calc_E = False)
+
+            #else:
+            self.simulate(cor_time, T = curr_temp, calc_mag = False, calc_E = False)
+
+            avg_mag_per_spin = reduce(lambda x,y: x+y, self.mag_vals)/len(self.mag_vals)
+
+
             #print("Avg mag at temp ", curr_temp, ": ", avg_mag_per_spin)
             #print("mags squared: ", [item[1] for item in mag_measurements])
             #avg_mag_per_spin_sq = reduce(lambda x,y: x+y, [item[1] for item in mag_measurements])/len(mag_measurements)
@@ -401,4 +416,4 @@ if __name__ == "__main__":
     #lat.autocorrelate(50)
     #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 500000, cor_time = 1000)
     #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 300000, cor_time = 150000)
-    lat.mag_v_temp(final_temp=5, temp_step=.1, eq_time=50000, cor_time=1)
+    lat.mag_v_temp(final_temp=10, temp_step=.2, eq_time=50000, cor_time=600000)
