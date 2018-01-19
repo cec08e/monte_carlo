@@ -1,4 +1,6 @@
 from __future__ import print_function
+import cpickle as pickle
+import shelve
 from random import choice
 from numpy import exp, power
 from numpy.random import randint, rand, seed
@@ -8,6 +10,11 @@ from functools import reduce
 from scipy.integrate import simps
 from scipy.optimize import curve_fit
 import time
+
+## TO DO: Separate simulation and analysis code.
+## Add options for pickling data or using current run
+## Store runs in increments of sweeps mapped to temperature
+## E.g. {Temp1: [(mag1, e1),(mag2, e2),(mag3, e3)], Temp2: [(..),(..),(..)], ..}
 
 class Ising2D(object):
 
@@ -32,7 +39,7 @@ class Ising2D(object):
 
 
     def initialize(self, init_T = 0):
-        self.step_num = 1 # initialize step count
+        self.sweep_num = 1 # initialize step count
         # If T = 0, align all spins to ground state
         if init_T:
             # Assume T large enough to produce random spin state
@@ -47,7 +54,7 @@ class Ising2D(object):
         self.mag_vals = []
         self.energy_vals = []
 
-    def simulate(self, max_steps, T = 0, calc_mag = True, calc_E = True):
+    def simulate(self, num_sweeps, T = 0, calc_mag = True, calc_E = True, filename=None):
         #seed(int(time.time()))
         # Thought: make max_steps default to equilibration value
         # If calc_mag or calc_E are true, magnetization and energy are calculated
@@ -56,7 +63,7 @@ class Ising2D(object):
         # Therefore, our possible acceptance ratios for delta_E > 0 are
         self.mag_vals = []
         self.energy_vals = []
-        self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
+        #self.accept_ratios = [exp(-(1.0/T)*4*self.J), exp(-(1.0/T)*8*self.J)]
 
         if T == 0:
             T = .00001
@@ -68,10 +75,11 @@ class Ising2D(object):
         self.mag_vals.append(float(self.mag)/self.lat_size)
         self.energy_vals.append(float(self.energy))
         #logging.info('Starting simulation.')
-        for i in range(max_steps):
-            self.step(T)
+        for i in range(num_sweeps):
+            self.sweep(T)
             #if self.step_num in [0,100000,200000,400000,600000,1000000,2000000,4000000]:
             #    self.visualize_lattice()
+        if
 
 
     def calc_energy(self):
@@ -98,56 +106,58 @@ class Ising2D(object):
         return mag
 
 
-    def step(self, T):
-        #logging.info("Step " + str(self.step_num))
-        # Select a new state by randomly choosing a spin to flip
-        chosen_site_row = randint(0, self.rows )
-        chosen_site_col = randint(0, self.columns )
-        #print(chosen_site_row, chosen_site_col)
-        #logging.info("Site selected: " + str((chosen_site_row, chosen_site_col)))
-        # Calculate the difference in energy between new and old state
-        # Using the summation trick of Newman, Barkema (equation 3.10)
-        delta_E = self.calc_delta_E(chosen_site_row, chosen_site_col)
-        #logging.info("Delta E: " + str(delta_E))
-        accept_flag = False
-        if delta_E > 0:
-            #logging.info("Delta E positive.")
-            if rand() < exp(-(1.0/T)*delta_E*self.J):
+    def sweep(self, T):
+
+        # Perform as many steps as there are lattice sites
+        for step in range(int(self.lat_size)):
+            # Select a new state by randomly choosing a spin to flip
+            chosen_site_row = randint(0, self.rows )
+            chosen_site_col = randint(0, self.columns )
+
+            # Calculate the difference in energy between new and old state
+            # Using the summation trick of Newman, Barkema (equation 3.10)
+            delta_E = self.calc_delta_E(chosen_site_row, chosen_site_col)
+
+            accept_flag = False
+            if delta_E > 0:
+                #logging.info("Delta E positive.")
+                if rand() < exp(-(1.0/T)*delta_E*self.J):
+                    accept_flag = True
+                    self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
+
+                #r = rand()
+                #logging.info("random val is " + str(rand))
+                #if delta_E > self.min_positive:
+                #    if r < self.accept_ratios[1]:
+                #        logging.info("Accepted. Rand is larger than larger exp.")
+                #        accept_flag = True
+                #        self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
+                #elif r < self.accept_ratios[0]:
+                #    logging.info("Accepted. Rand is larger than smaller exp.")
+                #    accept_flag = True
+                #    self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
+            else:
+                # Accept the move with A = 1
+                #logging.info("Accepted.")
                 accept_flag = True
                 self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
+            # Update and record modified magnetization and energy values
+            # Old values are stored in self.energy_vals[self.step_num-1] and self.mag_vals[self.step_num-1]
+            if accept_flag:
+                #logging.info("Accept flag is true.")
+                self.energy = self.energy + delta_E
+                self.mag = float(self.mag) + 2*float(self.lattice[chosen_site_row][chosen_site_col])
+                #logging.info("New energy: " + str(self.energy))
+                #print("new magnetization: ", self.mag, "             ", chosen_site_row, chosen_site_col)
 
-            #r = rand()
-            #logging.info("random val is " + str(rand))
-            #if delta_E > self.min_positive:
-            #    if r < self.accept_ratios[1]:
-            #        logging.info("Accepted. Rand is larger than larger exp.")
-            #        accept_flag = True
-            #        self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
-            #elif r < self.accept_ratios[0]:
-            #    logging.info("Accepted. Rand is larger than smaller exp.")
-            #    accept_flag = True
-            #    self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
-        else:
-            # Accept the move with A = 1
-            #logging.info("Accepted.")
-            accept_flag = True
-            self.lattice[chosen_site_row][chosen_site_col] = self.lattice[chosen_site_row][chosen_site_col]*(-1)
-        # Update and record modified magnetization and energy values
-        # Old values are stored in self.energy_vals[self.step_num-1] and self.mag_vals[self.step_num-1]
-        if accept_flag:
-            #logging.info("Accept flag is true.")
-            self.energy = self.energy + delta_E
-            self.mag = float(self.mag) + 2*float(self.lattice[chosen_site_row][chosen_site_col])
-            #logging.info("New energy: " + str(self.energy))
-            #print("new magnetization: ", self.mag, "             ", chosen_site_row, chosen_site_col)
 
+            #if self.step_num%self.lat_size == 0:
+            #    self.energy_vals.append(self.energy/self.lat_size) # record energy per site
+            #    self.mag_vals.append(self.mag/self.lat_size)   # record magnetization per site
+            #print(self.mag)
         self.energy_vals.append(self.energy) # record energy per site
         self.mag_vals.append(float(self.mag)/self.lat_size)
-        #if self.step_num%self.lat_size == 0:
-        #    self.energy_vals.append(self.energy/self.lat_size) # record energy per site
-        #    self.mag_vals.append(self.mag/self.lat_size)   # record magnetization per site
-        #print(self.mag)
-        self.step_num += 1
+        self.sweep_num += 1
 
 
 
@@ -352,6 +362,8 @@ class Ising2D(object):
         #print(energy_measurements)
         return mag_measurements
 
+    # Analysis functions
+
     def mag_v_temp(self,  init_temp = 0, final_temp = 1, temp_step = .1, eq_time = None, cor_time = None):
         ''' Plots the mean magnetization per spin vs temperature for
             lattice. Plot begins with T=0 configuration and plots to final_temp
@@ -400,7 +412,7 @@ class Ising2D(object):
             temp_vals.append(curr_temp)
             print("Current temp: ", curr_temp)
 
-        pyplot.plot(temp_vals, mag_vals, 'g')
+        pyplot.plot(temp_vals, mag_vals, 'go')
         pyplot.ylabel('Magnetization per spin $m$')
         pyplot.xlabel('Temperature')
         pyplot.show()
@@ -427,7 +439,7 @@ if __name__ == "__main__":
     #lat.autocorrelate(1000)
 
 
-    lat = Ising2D(100, 100, init_T=0)
+    lat = Ising2D(16, 16, init_T=0)
     ##lat.simulate(max_steps=100000, T=5)
     ##lat.plot_mag_energy_per_site()
     ##lat.autocorrelate(50)
@@ -436,4 +448,4 @@ if __name__ == "__main__":
     ##lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 300000, cor_time = 150000)
 
     ### 100x100 - eq_time = 1500000 cor_time = 150
-    lat.mag_v_temp(init_temp = 0, final_temp=5, temp_step=.1, eq_time=1500000, cor_time=150)
+    lat.mag_v_temp(init_temp = 0, final_temp=5, temp_step=.1, eq_time=1024, cor_time=1024)
