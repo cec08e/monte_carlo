@@ -13,7 +13,7 @@ class Ising2D(object):
     def __init__(self, rows, columns, init_T = 0, B=0, J=1, bc='periodic'):
         self.rows = rows
         self.columns = columns
-        self.lat_size = rows*columns
+        self.lat_size = float(rows*columns)
         self.bc = bc
         self.B = B
         self.J = J
@@ -248,16 +248,16 @@ class Ising2D(object):
             curr_temp += temp_step
             self.simulate(eq_time, T = curr_temp, calc_mag = False, calc_E = False)
             mag_measurements = self.measure_mag_per_spin(cor_time, curr_temp)
-            print("mags: ", [item[0] for item in mag_measurements])
+            #print("mags: ", [item[0] for item in mag_measurements])
             avg_mag_per_spin = reduce(lambda x,y: x+y, [item[0] for item in mag_measurements])/len(mag_measurements)
-            print("mags squared: ", [item[1] for item in mag_measurements])
+            #print("mags squared: ", [item[1] for item in mag_measurements])
             avg_mag_per_spin_sq = reduce(lambda x,y: x+y, [item[1] for item in mag_measurements])/len(mag_measurements)
-            print("<m>: ", avg_mag_per_spin)
-            print("<m^2>: ", avg_mag_per_spin_sq)
-            print("<m>^2: ", power(avg_mag_per_spin, 2))
+            #print("<m>: ", avg_mag_per_spin)
+            #print("<m^2>: ", avg_mag_per_spin_sq)
+            #print("<m>^2: ", power(avg_mag_per_spin, 2))
             chi_vals.append((avg_mag_per_spin_sq - power(avg_mag_per_spin,2))*(self.lat_size*curr_temp))
             temp_vals.append(curr_temp)
-            print("Current temp: ", curr_temp)
+            #print("Current temp: ", curr_temp)
 
         pyplot.plot(temp_vals, chi_vals, 'g')
         pyplot.ylabel('Susceptibility $\chi$')
@@ -307,7 +307,7 @@ class Ising2D(object):
             avg_energy_sq = reduce(lambda x,y: x+y, [item[1] for item in energy_measurements])/len(energy_measurements)
             c_vals.append((avg_energy_sq - power(avg_energy,2))/(self.lat_size*(power(curr_temp,2))))
             temp_vals.append(curr_temp)
-            print("Current temp: ", curr_temp)
+            #print("Current temp: ", curr_temp)
 
         pyplot.plot(temp_vals, c_vals, 'g')
         pyplot.ylabel('Specific heat per spin $c$')
@@ -327,7 +327,7 @@ class Ising2D(object):
         #print(energy_measurements)
         return energy_measurements
 
-    def measure_mag_per_spin(self, cor_time, curr_temp, num = 450):
+    def measure_mag_per_spin(self, cor_time, curr_temp, num = 10):
         # Make energy measurements, num times
         mag_measurements = []
 
@@ -416,4 +416,4 @@ if __name__ == "__main__":
     #lat.autocorrelate(50)
     #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 500000, cor_time = 1000)
     #lat.spec_heat_v_temp(final_temp = 5, temp_step = .1, eq_time = 300000, cor_time = 150000)
-    lat.mag_v_temp(final_temp=10, temp_step=.2, eq_time=50000, cor_time=600000)
+    lat.mag_v_temp(final_temp=10, temp_step=.1, eq_time=50000, cor_time=600000)
