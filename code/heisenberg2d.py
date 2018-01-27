@@ -6,6 +6,7 @@ from numpy import dot, add, exp
 from numpy.linalg import norm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+from matplotlib import colors
 
 class Heisenberg2D(object):
     def __init__(self, rows, cols, init_T = 0, B = 0, J = 1):
@@ -79,7 +80,7 @@ class Heisenberg2D(object):
         z = 0
 
         # Grab spherical coordinates of spin vector
-        theta = arccos(spin[2])  # theta = arccos(z/R)
+        theta = arccos(spin[2])  # theta = arccos(z) since spin is unit vector
         if spin[0] == 0:
             if spin[1] > 0:
                 phi = pi/2.0
@@ -91,7 +92,7 @@ class Heisenberg2D(object):
         # Rotate random point with phi
         x, y = x*cos(phi) - y*sin(phi), x*sin(phi) + y*cos(phi)
 
-        # Now, rotate random point with theta - rotate theta around y' = -sin(phi), cos(phi)
+        # Now, rotate random point with theta - rotate around y' = -sin(phi), cos(phi) axis
         u_x = -sin(phi)
         u_y = cos(phi)
 
@@ -109,6 +110,14 @@ class Heisenberg2D(object):
         #ax.set_zlim(-1,1)
         #plt.show()
         return tuple(final_point) # Return the perturbed spin
+
+    def simulate(self, num_sweeps, T, filename=None):
+        self.sweep_num = 1
+        for i in range(num_sweeps):
+            self.sweep(T)
+            if i+1 in [1,10,100,1000,10000]:
+                lat.visualize_lattice()
+
 
     def sweep(self, T):
         # Perform as many steps as there are lattice sites
@@ -148,8 +157,15 @@ class Heisenberg2D(object):
 
         return -self.J*dot(delta_spin, neighbor_sum)
 
+    def visualize_lattice(self):
+        #norm = colors.Normalize(vmin=-1, vmax=1)
+        #cmap = colors.ListedColormap(['white','black'])
+        #plt.imshow([[item[2] for item in row] for row in self.lattice], cmap=cmap, norm=norm)
+        plt.imshow([[item[2] for item in row] for row in self.lattice], cmap=plt.get_cmap('Spectral'))
+
+        plt.show()
+
 
 if __name__ == "__main__":
-    lat = Heisenberg2D(5,5, init_T = 2)
-    lat.perturb(lat.lattice[1][2])
-    lat.sweep(T=5)
+    lat = Heisenberg2D(10,10, init_T = 2)
+    lat.simulate(num_sweeps = 10000, T=.001)
