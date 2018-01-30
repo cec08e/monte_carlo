@@ -2,17 +2,18 @@ from __future__ import print_function
 from numpy.random import uniform
 from numpy.random import random, randint, rand
 from numpy import power,sqrt,pi,sin,cos,arccos,arctan
-from numpy import dot, add, exp
+from numpy import dot, cross, add, exp
 from numpy.linalg import norm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
 class Heisenberg2D(object):
-    def __init__(self, rows, cols, init_T = 0, B = 0, J = 1):
+    def __init__(self, rows, cols, init_T = 0, B = 0, J = 1, D = (1,0,0)):
         self.rows = rows
         self.cols = cols
         self.J = J
+        self.D = D
         self.lat_size = rows*cols
         self.initialize(init_T, B)
         self.sweep_num=0
@@ -155,7 +156,9 @@ class Heisenberg2D(object):
         neighbor_sum = add(neighbor_sum, self.lattice[row][(col-1)%self.cols]) # west neighbor
         neighbor_sum = add(neighbor_sum, self.lattice[row][(col+1)%self.cols]) # east neighbor
 
-        return -self.J*dot(delta_spin, neighbor_sum)
+        cross_term = cross(delta_spin, neighbor_sum)
+
+        return -self.J*dot(delta_spin, neighbor_sum) - dot(self.D, cross_term)
 
     def visualize_lattice(self):
         #norm = colors.Normalize(vmin=-1, vmax=1)
