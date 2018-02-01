@@ -8,11 +8,15 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-class Heisenberg2D(object):
-    def __init__(self, rows, cols, init_T = 0, B = 0, J = 1, D = (1,0,0)):
+
+
+class Heisenberg3D(object):
+    ''' Bilayer implementation '''
+    def __init__(self, rows, cols, init_T = 0, B = 0, J_intra = 1, J_inter = .1, k = 0, D = (1,0,0)):
         self.rows = rows
         self.cols = cols
-        self.J = J
+        self.J_intra = J_intra     # Intra-layer interaction
+        self.J_inter = J_inter     # Inter-layer interaction
         self.D = D
         self.lat_size = rows*cols
         self.initialize(init_T, B)
@@ -23,18 +27,9 @@ class Heisenberg2D(object):
         Initializes lattice with spin configuration
         determined by temperature.
         '''
-        if init_T:
-            # Generate random spin configuration
-            self.lattice = [[ self.gen_random_spin() for j in range(self.cols)] for i in range(self.rows)]
-
-        else:
-            # Generate aligned spin configuration, based on B
-            if B < 0:
-                # Align spins along negative z-axis
-                self.lattice = [[(0,0,-1) for j in range(self.cols)] for i in range(self.rows)]
-            else:
-                # Align spins along positive z-axis
-                self.lattice = [[(0,0,1) for j in range(self.cols)] for i in range(self.rows)]
+        # Generate random spin configuration
+        # Two layers
+        self.lattice = [[[ self.gen_random_spin() for j in range(self.cols)] for i in range(self.rows)] for g in range(2)]
 
 
     def gen_random_spin(self):
@@ -126,18 +121,19 @@ class Heisenberg2D(object):
         for step in range(self.lat_size):
             # Select a new state by randomly choosing a spin to perturb
             # Note: NumPy randint arguments are on a half-open interval
+            chosen_site_lay = randint(0, 2)
             chosen_site_row = randint(0, self.rows)
             chosen_site_col = randint(0, self.cols)
-            spin = self.lattice[chosen_site_row][chosen_site_col]
+            spin = self.lattice[chosen_site_lay][chosen_site_row][chosen_site_col]
             # Calculate the difference in energy between new and old state
             # Using the summation trick of Newman, Barkema (equation 3.10)
             temp_spin = self.perturb(spin)
-            delta_E = self.calc_delta_E(temp_spin, chosen_site_row, chosen_site_col)
+            delta_E = self.calc_delta_E(temp_spin, chosen_site_lay, chosen_site_row, chosen_site_col)
             #print("Delta E: ", delta_E)
 
-            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E*self.J))):
+            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E*self.J_inter))):   # FIX THISSSSS
                 #accept_flag = False
-                self.lattice[chosen_site_row][chosen_site_col] = temp_spin
+                self.lattice[chosen_site_lay][chosen_site_row][chosen_site_col] = temp_spin
                 #self.energy = self.energy + delta_E
                 #self.mag = float(self.mag) + 2*float(self.lattice[chosen_site_row][chosen_site_col])
 
@@ -146,20 +142,20 @@ class Heisenberg2D(object):
         #self.mag_vals.append(self.mag/self.lat_size)
         self.sweep_num += 1
 
-    def calc_delta_E(self, temp_spin, row, col):
+    def calc_delta_E(self, temp_spin, layer, row, col):
         # Change in energy given by -J*(delta_spin)*(neighbors)
-        spin = self.lattice[row][col]
+        spin = self.lattice[layer][row][col]
         delta_spin = [temp_spin[i] - spin[i] for i in range(3)]
 
         # Add up all neighbor spins, element wise
-        neighbor_sum = self.lattice[(row-1)%self.rows][col] # north neighbor
-        neighbor_sum = add(neighbor_sum, self.lattice[(row+1)%self.rows][col]) # south neighbor
-        neighbor_sum = add(neighbor_sum, self.lattice[row][(col-1)%self.cols]) # west neighbor
-        neighbor_sum = add(neighbor_sum, self.lattice[row][(col+1)%self.cols]) # east neighbor
+        neighbor_sum = self.lattice[layer][(row-1)%self.rows][col] # north neighbor
+        neighbor_sum = add(neighbor_sum, self.lattice[layer][(row+1)%self.rows][col]) # south neighbor
+        neighbor_sum = add(neighbor_sum, self.lattice[layer][row][(col-1)%self.cols]) # west neighbor
+        neighbor_sum = add(neighbor_sum, self.lattice[layer][row][(col+1)%self.cols]) # east neighbor
 
-        cross_term = cross(delta_spin, neighbor_sum)
+        #cross_term = cross(delta_spin, neighbor_sum)
 
-        return -self.J*dot(delta_spin, neighbor_sum) - dot(self.D, cross_term)
+        return -self.J_intra*dot(delta_spin, neighbor_sum) + self.J_inter*dot(delta_spin, self.lattice[(layer+1)%2][row][col])
 
     def visualize_lattice(self):
         #norm = colors.Normalize(vmin=-1, vmax=1)
@@ -174,13 +170,14 @@ class Heisenberg2D(object):
         ax = fig.gca(projection='3d')
 
         # Make the grid
-        for i, row in enumerate(self.lattice):
-            for j, spin in enumerate(row):
-                ax.quiver(i,j,0, spin[0], spin[1], spin[2], length=.4, pivot = 'middle', normalize=True)
-        ax.set_zlim(-.5,.5)
+        for g, layer in enumerate(self.lattice):
+            for i, row in enumerate(layer):
+                for j, spin in enumerate(row):
+                    ax.quiver(i,j,g, spin[0], spin[1], spin[2], length=.4, pivot = 'middle', normalize=True)
+        ax.set_zlim(-1,2)
         plt.show()
 
 
 if __name__ == "__main__":
-    lat = Heisenberg2D(10,10, init_T = 2)
+    lat = Heisenberg3D(10,10, init_T = 2)
     lat.simulate(num_sweeps = 10000, T=.001)
