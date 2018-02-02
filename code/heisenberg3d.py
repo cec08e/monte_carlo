@@ -12,12 +12,14 @@ from matplotlib import colors
 
 class Heisenberg3D(object):
     ''' Bilayer implementation '''
-    def __init__(self, rows, cols, init_T = 0, B = 0, J_intra = 1, J_inter = .1, k = 0, D = (1,0,0)):
+    def __init__(self, rows, cols, init_T = 0, B = 0, J_intra = 1, J_inter = .1, k1 = 0, k2 = 0, D = (1,0,0)):
         self.rows = rows
         self.cols = cols
         self.J_intra = J_intra     # Intra-layer interaction
         self.J_inter = J_inter     # Inter-layer interaction
         self.D = D
+        self.k1 = k1
+        self.k2 = k2
         self.lat_size = rows*cols
         self.initialize(init_T, B)
         self.sweep_num=0
@@ -131,7 +133,7 @@ class Heisenberg3D(object):
             delta_E = self.calc_delta_E(temp_spin, chosen_site_lay, chosen_site_row, chosen_site_col)
             #print("Delta E: ", delta_E)
 
-            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E*self.J_inter))):   # FIX THISSSSS
+            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E))):   # FIX THISSSSS
                 #accept_flag = False
                 self.lattice[chosen_site_lay][chosen_site_row][chosen_site_col] = temp_spin
                 #self.energy = self.energy + delta_E
@@ -154,16 +156,32 @@ class Heisenberg3D(object):
         neighbor_sum = add(neighbor_sum, self.lattice[layer][row][(col+1)%self.cols]) # east neighbor
 
         #cross_term = cross(delta_spin, neighbor_sum)
+        if layer == 0:
+            delta_a = self.k1*power(delta_spin[2],2)
+        else:
+            delta_a = self.k2*power(delta_spin[2],2)
 
-        return -self.J_intra*dot(delta_spin, neighbor_sum) + self.J_inter*dot(delta_spin, self.lattice[(layer+1)%2][row][col])
+        return -self.J_intra*dot(delta_spin, neighbor_sum) + self.J_inter*dot(delta_spin, self.lattice[(layer+1)%2][row][col]) + delta_a
 
     def visualize_lattice(self):
-        #norm = colors.Normalize(vmin=-1, vmax=1)
+        norm = colors.Normalize(vmin=-1, vmax=1)
         #cmap = colors.ListedColormap(['white','black'])
         #plt.imshow([[item[2] for item in row] for row in self.lattice], cmap=cmap, norm=norm)
-        plt.imshow([[item[2] for item in row] for row in self.lattice], cmap=plt.get_cmap('Spectral'))
+        plt.subplot(121)
+        plt.imshow([[item[2] for item in row] for row in self.lattice[0]], cmap=plt.get_cmap('Spectral'), norm=norm)
+        plt.subplot(122)
+        plt.imshow([[item[2] for item in row] for row in self.lattice[1]], cmap=plt.get_cmap('Spectral'), norm=norm)
 
         plt.show()
+# make d sufficiently large - half j
+# run simulation at different temp - should see spiral phase.
+# plot sz spiral phase cos theta = 1 - theta^2 , sin theta
+# minimize energy and j*theta^2 - d*theta
+
+
+# plot m vs h, m1 and m2 v h
+# DM vector - bulk vector pointing from i to j
+# symmetry breaking rij cross z
 
     def visualize_spins(self):
         fig = plt.figure()
@@ -179,5 +197,5 @@ class Heisenberg3D(object):
 
 
 if __name__ == "__main__":
-    lat = Heisenberg3D(10,10, init_T = 2)
+    lat = Heisenberg3D(20,20, init_T = 2)
     lat.simulate(num_sweeps = 10000, T=.001)

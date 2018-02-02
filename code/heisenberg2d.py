@@ -135,7 +135,8 @@ class Heisenberg2D(object):
             delta_E = self.calc_delta_E(temp_spin, chosen_site_row, chosen_site_col)
             #print("Delta E: ", delta_E)
 
-            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E*self.J))):
+            #if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E*self.J))):
+            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E))):
                 #accept_flag = False
                 self.lattice[chosen_site_row][chosen_site_col] = temp_spin
                 #self.energy = self.energy + delta_E
