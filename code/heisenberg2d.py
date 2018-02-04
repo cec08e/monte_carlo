@@ -159,7 +159,7 @@ class Heisenberg2D(object):
         neighbor_sum = add(neighbor_sum, self.lattice[row][(col+1)%self.cols]) # east neighbor
 
         cross_term = cross(delta_spin, neighbor_sum)
-
+        # DM term: D * (Si x Sj) where D = self.D(r_ij x z)
         return -self.J*dot(delta_spin, neighbor_sum) - dot(self.D, cross_term)
 
     def visualize_lattice(self):

@@ -183,6 +183,36 @@ class Heisenberg3D(object):
 # DM vector - bulk vector pointing from i to j
 # symmetry breaking rij cross z
 
+    def calc_magnetization(self, layer = None):
+        ''' Calculate the magnetization of the system, either as a whole or
+            for a specific layer.
+
+            :param layer: indicates the layer for which magnetization should be calculated. Defaults
+            to None if no layer is selected and all spins are taken into account.
+            :type layer: int.
+        '''
+        mag = 0.0
+        mag_spin = 0.0
+        if layer is None:
+            # Calc magnetization for both layers
+            for layer in self.lattice:
+                for row in layer:
+                    for spin in row:
+                        mag += spin[2]
+            mag_spin = (mag/self.lat_size*2)
+        else:
+            # Only magnetization for the first or second layer
+            for row in self.lattice[layer]:
+                for spin in row:
+                    mag += spin[2]
+            mag_spin = mag/self.lat_size
+
+        print("Magnetization is: ", mag)
+        print("Magnetization per spin is: ", mag_spin)
+
+        return mag, mag_spin
+
+
     def visualize_spins(self):
         fig = plt.figure()
         ax = fig.gca(projection='3d')
@@ -199,3 +229,6 @@ class Heisenberg3D(object):
 if __name__ == "__main__":
     lat = Heisenberg3D(20,20, init_T = 2)
     lat.simulate(num_sweeps = 10000, T=.001)
+    lat.calc_magnetization()
+    lat.calc_magnetization(0)
+    lat.calc_magnetization(1)
