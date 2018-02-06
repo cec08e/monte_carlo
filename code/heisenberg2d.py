@@ -191,11 +191,11 @@ class Heisenberg2D(object):
         for i, row in enumerate(self.lattice):
             for j, spin in enumerate(row):
                 print("Spin: ", spin)
-                ax.quiver(i,j,0, spin[0], spin[1], spin[2], length=.2, pivot = 'middle', normalize=True)
-        ax.set_zlim(-.3,.3)
+                ax.quiver(i*2,j*2,0, spin[0], spin[1], spin[2], length=1, pivot = 'middle', normalize=True)
+        ax.set_zlim(-1.5,1.5)
         plt.show()
 
 
 if __name__ == "__main__":
-    lat = Heisenberg2D(30,30, init_T = 2)
-    lat.simulate(num_sweeps = 1000, T=.001)
+    lat = Heisenberg2D(20,20, init_T = 2)
+    lat.simulate(num_sweeps = 10000, T=.001)
