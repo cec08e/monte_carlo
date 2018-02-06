@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 
 class Heisenberg2D(object):
-    def __init__(self, rows, cols, init_T = 0, B = 0, J = 1, D = (1,0,0)):
+    def __init__(self, rows, cols, init_T = 0, B = 0, J = 1, D = .5):
         self.rows = rows
         self.cols = cols
         self.J = J
@@ -159,8 +159,21 @@ class Heisenberg2D(object):
         neighbor_sum = add(neighbor_sum, self.lattice[row][(col+1)%self.cols]) # east neighbor
 
         cross_term = cross(delta_spin, neighbor_sum)
+        # Orientation of D-vector is +y for <ij, i-1 j> -- north neighbor
+        # Orientation of D-vector is +x for <ij, i j+1>  -- east neighbor
+        # Orientation of D-vector is -y for <ij, i+1 j> -- south neighbor
+        # Orientation of D-vector is -x for <ij, i j-1> -- west neighbor
+        # D(d_hat) * (si x sj)
+
+        # Sum over all neighbors D * (delta_spin x S_j)
+        delta_D = dot((0,self.D,0), cross(delta_spin, self.lattice[(row-1)%self.rows][col]))   # north neighbor
+        delta_D += dot((0,-1*self.D,0), cross(delta_spin, self.lattice[(row+1)%self.rows][col]))    # south neighbor
+        delta_D += dot((-1*self.D,0,0), cross(delta_spin, self.lattice[row][(col-1)%self.cols]))    # west neighbor
+        delta_D += dot((self.D,0,0), cross(delta_spin, self.lattice[row][(col+1)%self.cols]))    # east neighbor
+
+
         # DM term: D * (Si x Sj) where D = self.D(r_ij x z)
-        return -self.J*dot(delta_spin, neighbor_sum) - dot(self.D, cross_term)
+        return -self.J*dot(delta_spin, neighbor_sum) - delta_D
 
     def visualize_lattice(self):
         #norm = colors.Normalize(vmin=-1, vmax=1)
@@ -177,11 +190,12 @@ class Heisenberg2D(object):
         # Make the grid
         for i, row in enumerate(self.lattice):
             for j, spin in enumerate(row):
-                ax.quiver(i,j,0, spin[0], spin[1], spin[2], length=.4, pivot = 'middle', normalize=True)
-        ax.set_zlim(-.5,.5)
+                print("Spin: ", spin)
+                ax.quiver(i,j,0, spin[0], spin[1], spin[2], length=.2, pivot = 'middle', normalize=True)
+        ax.set_zlim(-.3,.3)
         plt.show()
 
 
 if __name__ == "__main__":
-    lat = Heisenberg2D(10,10, init_T = 2)
-    lat.simulate(num_sweeps = 10000, T=.001)
+    lat = Heisenberg2D(30,30, init_T = 2)
+    lat.simulate(num_sweeps = 1000, T=.001)
