@@ -237,7 +237,7 @@ def plot_M_v_B():
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
     B_vals = linspace(-20,20,num=200)
-    lat = Heisenberg3D(10, 10, k1=-1, k2=-1, init_T = 5, B=B_vals[0])
+    lat = Heisenberg3D(10, 10, k1=-2, k2=-2, init_T = 5, B=B_vals[0])
     lat.simulate(num_sweeps = 10000, T= .001)
     #print("B_vals: ", B_vals)
     #print("reversed: ", list(reversed(B_vals)))
@@ -273,7 +273,9 @@ def plot_M_v_B():
     #plt.plot(k_vals, total_mags)
 
     plt.subplot(311)   # Magnetization per spin, both lattices
-    plt.plot(list(B_vals)+list(reversed(B_vals)), total_mags_per_spin, 'ro')
+    plt.plot(list(B_vals), total_mags_per_spin[0:len(list(B_vals))], 'r')
+    plt.plot(list(reversed(B_vals)), total_mags_per_spin[len(list(B_vals)):], 'b')
+
     plt.ylabel("M")
     plt.xlabel("B")
 
@@ -281,7 +283,8 @@ def plot_M_v_B():
     #plt.plot(k_vals, t_mags_1)
 
     plt.subplot(312)   # Magnetization per spin, first lattice
-    plt.plot(list(B_vals)+list(reversed(B_vals)), total_mags_per_spin_1, 'ro')
+    plt.plot(list(B_vals), total_mags_per_spin_1[0:len(list(B_vals))], 'r')
+    plt.plot(list(reversed(B_vals)), total_mags_per_spin_1[len(list(B_vals)):], 'b')
     plt.ylabel("$M_{1}$")
     plt.xlabel("B")
 
@@ -290,7 +293,8 @@ def plot_M_v_B():
     #plt.plot(k_vals, t_mags_2)
 
     plt.subplot(313)   # Magnetization per spin, second lattice
-    plt.plot(list(B_vals)+list(reversed(B_vals)), total_mags_per_spin_2, 'ro')
+    plt.plot(list(B_vals), total_mags_per_spin_2[0:len(list(B_vals))], 'r')
+    plt.plot(list(reversed(B_vals)), total_mags_per_spin_2[len(list(B_vals)):], 'b')
     plt.ylabel("$M_{2}$")
     plt.xlabel("B")
     plt.show()
