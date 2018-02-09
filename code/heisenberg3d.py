@@ -2,22 +2,25 @@ from __future__ import print_function
 from numpy.random import uniform
 from numpy.random import random, randint, rand
 from numpy import power,sqrt,pi,sin,cos,arccos,arctan
-from numpy import dot, cross, add, exp
+from numpy import dot, cross, add, exp, linspace
 from numpy.linalg import norm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
-
+# Check:
+#- random spin generation: actually random?
+#- delta E calculation
+#- accepting ratio
 
 class Heisenberg3D(object):
     ''' Bilayer implementation '''
-    def __init__(self, rows, cols, init_T = 0, B = 0, J_intra = 1, J_inter = .1, k1 = 0, k2 = 0, D = (1,0,0)):
+    def __init__(self, rows, cols, init_T = 0, B = 0, J_intra = 1, J_inter = .1, k1 = 0, k2 = 0):
         self.rows = rows
         self.cols = cols
         self.J_intra = J_intra     # Intra-layer interaction
         self.J_inter = J_inter     # Inter-layer interaction
-        self.D = D
+        self.B = B
         self.k1 = k1
         self.k2 = k2
         self.lat_size = rows*cols
@@ -113,9 +116,10 @@ class Heisenberg3D(object):
         self.sweep_num = 1
         for i in range(num_sweeps):
             self.sweep(T)
-            if i+1 in [1,10,100,1000,10000]:
-                self.visualize_lattice()
-                self.visualize_spins()
+            #if i+1 in [1,10,100,1000,10000]:
+                #self.visualize_lattice()
+                #if self.lat_size < 900:
+                    #self.visualize_spins()
 
 
     def sweep(self, T):
@@ -147,8 +151,11 @@ class Heisenberg3D(object):
     def calc_delta_E(self, temp_spin, layer, row, col):
         # Change in energy given by -J*(delta_spin)*(neighbors)
         spin = self.lattice[layer][row][col]
-        delta_spin = [temp_spin[i] - spin[i] for i in range(3)]
+        #print("Spin: ", spin)
 
+        delta_spin = [temp_spin[i] - spin[i] for i in range(3)]
+        #print("Perturbed spin: ", temp_spin)
+        #print("Delta spin: ", delta_spin)
         # Add up all neighbor spins, element wise
         neighbor_sum = self.lattice[layer][(row-1)%self.rows][col] # north neighbor
         neighbor_sum = add(neighbor_sum, self.lattice[layer][(row+1)%self.rows][col]) # south neighbor
@@ -157,11 +164,11 @@ class Heisenberg3D(object):
 
         #cross_term = cross(delta_spin, neighbor_sum)
         if layer == 0:
-            delta_a = self.k1*power(delta_spin[2],2)
+            delta_a = self.k1*(power(delta_spin[2],2) + 2*delta_spin[2]*spin[2])
         else:
-            delta_a = self.k2*power(delta_spin[2],2)
+            delta_a = self.k2*(power(delta_spin[2],2) + 2*delta_spin[2]*spin[2])
 
-        return -self.J_intra*dot(delta_spin, neighbor_sum) + self.J_inter*dot(delta_spin, self.lattice[(layer+1)%2][row][col]) + delta_a
+        return -self.J_intra*dot(delta_spin, neighbor_sum) + self.J_inter*dot(delta_spin, self.lattice[(layer+1)%2][row][col]) + delta_a - self.B*(delta_spin[2])
 
     def visualize_lattice(self):
         norm = colors.Normalize(vmin=-1, vmax=1)
@@ -173,15 +180,15 @@ class Heisenberg3D(object):
         plt.imshow([[item[2] for item in row] for row in self.lattice[1]], cmap=plt.get_cmap('Spectral'), norm=norm)
 
         plt.show()
-# make d sufficiently large - half j
-# run simulation at different temp - should see spiral phase.
-# plot sz spiral phase cos theta = 1 - theta^2 , sin theta
-# minimize energy and j*theta^2 - d*theta
+    # make d sufficiently large - half j
+    # run simulation at different temp - should see spiral phase.
+    # plot sz spiral phase cos theta = 1 - theta^2 , sin theta
+    # minimize energy and j*theta^2 - d*theta
 
 
-# plot m vs h, m1 and m2 v h
-# DM vector - bulk vector pointing from i to j
-# symmetry breaking rij cross z
+    # plot m vs h, m1 and m2 v h
+    # DM vector - bulk vector pointing from i to j
+    # symmetry breaking rij cross z
 
     def calc_magnetization(self, layer = None):
         ''' Calculate the magnetization of the system, either as a whole or
@@ -199,7 +206,7 @@ class Heisenberg3D(object):
                 for row in layer:
                     for spin in row:
                         mag += spin[2]
-            mag_spin = (mag/self.lat_size*2)
+            mag_spin = (mag/(self.lat_size*2))
         else:
             # Only magnetization for the first or second layer
             for row in self.lattice[layer]:
@@ -225,10 +232,129 @@ class Heisenberg3D(object):
         ax.set_zlim(-1,2)
         plt.show()
 
+def plot_M_v_B():
+    total_mags_per_spin = []
+    total_mags_per_spin_1 = []
+    total_mags_per_spin_2 = []
+    B_vals = linspace(-20,20,num=200)
+    lat = Heisenberg3D(10, 10, k1=-1, k2=-1, init_T = 5, B=B_vals[0])
+    lat.simulate(num_sweeps = 10000, T= .001)
+    #print("B_vals: ", B_vals)
+    #print("reversed: ", list(reversed(B_vals)))
+    #print("added: ", list(B_vals)+list(reversed(B_vals)))
+    for B in B_vals:
+        # Make k negative
+        lat.B = B
+        lat.simulate(num_sweeps = 100, T= .001)
+        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
+        t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
+        #total_mags.append(total_mag)
+        total_mags_per_spin.append(total_mag_per_spin)
+        #t_mags_1.append(t_mag_1)
+        #t_mags_2.append(t_mag_2)
+        total_mags_per_spin_1.append(t_mag_per_spin_1)
+        total_mags_per_spin_2.append(t_mag_per_spin_2)
+
+    for B in reversed(B_vals):
+        # Make k negative
+        lat.B = B
+        lat.simulate(num_sweeps = 100, T= .001)
+        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
+        t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
+        #total_mags.append(total_mag)
+        total_mags_per_spin.append(total_mag_per_spin)
+        #t_mags_1.append(t_mag_1)
+        #t_mags_2.append(t_mag_2)
+        total_mags_per_spin_1.append(t_mag_per_spin_1)
+        total_mags_per_spin_2.append(t_mag_per_spin_2)
+    #plt.subplot(321)   # Total magnetization, both lattices
+    #plt.plot(k_vals, total_mags)
+
+    plt.subplot(311)   # Magnetization per spin, both lattices
+    plt.plot(list(B_vals)+list(reversed(B_vals)), total_mags_per_spin, 'ro')
+    plt.ylabel("M")
+    plt.xlabel("B")
+
+    #plt.subplot(323)   # Total magnetization, first lattice
+    #plt.plot(k_vals, t_mags_1)
+
+    plt.subplot(312)   # Magnetization per spin, first lattice
+    plt.plot(list(B_vals)+list(reversed(B_vals)), total_mags_per_spin_1, 'ro')
+    plt.ylabel("$M_{1}$")
+    plt.xlabel("B")
+
+
+    #plt.subplot(325)   # Total magnetization, second lattice
+    #plt.plot(k_vals, t_mags_2)
+
+    plt.subplot(313)   # Magnetization per spin, second lattice
+    plt.plot(list(B_vals)+list(reversed(B_vals)), total_mags_per_spin_2, 'ro')
+    plt.ylabel("$M_{2}$")
+    plt.xlabel("B")
+    plt.show()
+
+def plot_M_v_k(B = 0):
+    total_mags = []
+    total_mags_per_spin = []
+    t_mags_1 = []
+    total_mags_per_spin_1 = []
+    t_mags_2 = []
+    total_mags_per_spin_2 = []
+    k_vals = linspace(-1,0,num=100)
+    for k in k_vals:
+        lat = Heisenberg3D(10,10, k1=k, k2=k,init_T = 2, B = B)
+        lat.simulate(num_sweeps = 5000, T= .001)
+        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
+        t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
+        total_mags.append(total_mag)
+        total_mags_per_spin.append(total_mag_per_spin)
+        t_mags_1.append(t_mag_1)
+        t_mags_2.append(t_mag_2)
+        total_mags_per_spin_1.append(t_mag_per_spin_1)
+        total_mags_per_spin_2.append(t_mag_per_spin_2)
+    #plt.subplot(321)   # Total magnetization, both lattices
+    #plt.plot(k_vals, total_mags)
+
+    plt.subplot(311)   # Magnetization per spin, both lattices
+    plt.plot(k_vals, total_mags_per_spin)
+    plt.ylabel("Magnetization per spin - entire")
+    plt.xlabel("k strength")
+
+    #plt.subplot(323)   # Total magnetization, first lattice
+    #plt.plot(k_vals, t_mags_1)
+
+    plt.subplot(312)   # Magnetization per spin, first lattice
+    plt.plot(k_vals, total_mags_per_spin_1)
+    plt.ylabel("Magnetization per spin - lattice 1")
+    plt.xlabel("k strength")
+
+
+    #plt.subplot(325)   # Total magnetization, second lattice
+    #plt.plot(k_vals, t_mags_2)
+
+    plt.subplot(313)   # Magnetization per spin, second lattice
+    plt.plot(k_vals, total_mags_per_spin_2)
+    plt.ylabel("Magnetization per spin - lattice 2")
+    plt.xlabel("k strength")
+
+
+
+    plt.show()
+
+
+
+
+
+
 
 if __name__ == "__main__":
-    lat = Heisenberg3D(20,20, init_T = 2)
-    lat.simulate(num_sweeps = 10000, T=.001)
-    lat.calc_magnetization()
-    lat.calc_magnetization(0)
-    lat.calc_magnetization(1)
+    #lat = Heisenberg3D(50,50, init_T = 2)
+    #lat.simulate(num_sweeps = 10000, T=.001)
+    #lat.calc_magnetization()
+    #lat.calc_magnetization(0)
+    #lat.calc_magnetization(1)
+    plot_M_v_B()
+    #plot_M_v_k()
