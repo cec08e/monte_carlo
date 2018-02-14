@@ -69,7 +69,7 @@ class Heisenberg3D(object):
             - Rotate plane by theta of current spin vector.
 
         '''
-        R = 1
+        R = .6    # Optimal value should be about .4 according to Nehme et al.
         #fig = plt.figure()
         #ax = fig.add_subplot(111, projection='3d')
         #ax.scatter(*spin, c='r', marker='^')
@@ -118,16 +118,20 @@ class Heisenberg3D(object):
 
     def simulate(self, num_sweeps, T, filename=None):
         self.sweep_num = 1
+        total_accept = 0.0
+        print("Simulating ", num_sweeps, " sweeps at T=", T)
         for i in range(num_sweeps):
-            self.sweep(T)
+            total_accept += self.sweep(T)
             #if i+1 in [1,10,100,1000,10000]:
                 #self.visualize_lattice()
                 #if self.lat_size < 900:
                     #self.visualize_spins()
+        print("Acceptance ratio is: ", total_accept/(num_sweeps*self.lat_size))
 
 
     def sweep(self, T):
         # Perform as many steps as there are lattice sites
+        num_accept = 0
         for step in range(self.lat_size):
             # Select a new state by randomly choosing a spin to perturb
             # Note: NumPy randint arguments are on a half-open interval
@@ -141,8 +145,9 @@ class Heisenberg3D(object):
             delta_E = self.calc_delta_E(temp_spin, chosen_site_lay, chosen_site_row, chosen_site_col)
             #print("Delta E: ", delta_E)
 
-            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E))):   # FIX THISSSSS
+            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E))):
                 #accept_flag = False
+                num_accept += 1
                 self.lattice[chosen_site_lay][chosen_site_row][chosen_site_col] = temp_spin
                 #self.energy = self.energy + delta_E
                 #self.mag = float(self.mag) + 2*float(self.lattice[chosen_site_row][chosen_site_col])
@@ -151,6 +156,7 @@ class Heisenberg3D(object):
         #self.energy_vals.append(self.energy)
         #self.mag_vals.append(self.mag/self.lat_size)
         self.sweep_num += 1
+        return num_accept
 
     def calc_delta_E(self, temp_spin, layer, row, col):
         # Change in energy given by -J*(delta_spin)*(neighbors)
@@ -328,14 +334,14 @@ class Heisenberg3D(object):
 
 def plot_M_v_B():
     logging.basicConfig(filename="bilayer_h.log", filemode='w',level=logging.INFO, format='%(message)s')
-
+    print("50,000 sweeps per measure.")
     total_mags_per_spin = []
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
-    B_vals = linspace(-15,15,num=50)
-    lat = Heisenberg3D(20, 20, k1=-5, k2=-5, J_inter = .1, init_T = 5, B=B_vals[0])
-    #lat.simulate(num_sweeps = 10000, T= .1)
-    lat.cool_lattice()
+    B_vals = linspace(-5,5,num=20)
+    lat = Heisenberg3D(10, 10, k1=-1, k2=-1, J_inter = 1, init_T = 5, B=B_vals[0])
+    lat.simulate(num_sweeps = 10000, T= 1)
+    #lat.cool_lattice()
 
     #print("B_vals: ", B_vals)
     #print("reversed: ", list(reversed(B_vals)))
@@ -345,16 +351,16 @@ def plot_M_v_B():
     logging.info('B: ' + str(lat.B))
     logging.info('M: ' + str())
     for B in B_vals:
-        # Make k negative
-        # Play with temp
-        # Mag v temp
-        # strong interlayer coupling
-        # sweeping speed
+        # Make k negative   --- flipped k value, bad effects
+        # Play with temp    - Cooling lattice slowly.
+        # Mag v temp        - plotted mag v temp. Results as expected
+        # strong interlayer coupling     - makes results more pronounced, but not correct
+        # sweeping speed     - Reduced to 1000 sweeps per measurement
         # Should have opposite magnetization on layers - investigate
 
         print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 5000, T= .1)
+        lat.simulate(num_sweeps = 50000, T= 1)
         total_mag, total_mag_per_spin = lat.calc_magnetization()
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
@@ -371,7 +377,7 @@ def plot_M_v_B():
         # Make k negative
         print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 5000, T= .1)
+        lat.simulate(num_sweeps = 50000, T= 1)
         total_mag, total_mag_per_spin = lat.calc_magnetization()
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
