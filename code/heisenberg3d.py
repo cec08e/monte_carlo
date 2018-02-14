@@ -7,6 +7,9 @@ from numpy.linalg import norm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import colors
+import logging
+import json
+
 
 # Check:
 #- random spin generation: actually random?
@@ -15,7 +18,7 @@ from matplotlib import colors
 
 class Heisenberg3D(object):
     ''' Bilayer implementation '''
-    def __init__(self, rows, cols, init_T = 0, B = 0, J_intra = 1, J_inter = .1, k1 = 0, k2 = 0):
+    def __init__(self, rows, cols, init_T = 5, B = 0, J_intra = 1, J_inter = .1, k1 = 0, k2 = 0):
         self.rows = rows
         self.cols = cols
         self.J_intra = J_intra     # Intra-layer interaction
@@ -24,6 +27,7 @@ class Heisenberg3D(object):
         self.k1 = k1
         self.k2 = k2
         self.lat_size = rows*cols
+        self.init_T = init_T
         self.initialize(init_T, B)
         self.sweep_num=0
 
@@ -232,20 +236,125 @@ class Heisenberg3D(object):
         ax.set_zlim(-1,2)
         plt.show()
 
+    def mag_v_temp(self,  init_temp = 0, final_temp = 1, temp_step = .1, eq_time = None, cor_time = None, filename = None):
+        ''' Plots the mean magnetization per spin vs temperature for
+            lattice. Plot begins with T=0 configuration and plots to final_temp
+            in temp_step intervals.
+        '''
+        #mag_vals = [1]
+        mag_vals = []
+        mag_vals_1 = []
+        mag_vals_2 = []
+        temp_vals = []
+        curr_temp = init_temp
+
+        # TO DO: Add support for pulling data from file.
+        while curr_temp > final_temp:
+            #self.initialize(init_T=100)
+
+            #seed(int(time.time()))
+            curr_temp -= temp_step
+            ##logging.info("*****************************")
+            #logging.info("Now trying to come to equilibrium at T=" + str(curr_temp))
+            #if curr_temp > 1 and curr_temp < 3:
+            #    self.simulate(eq_time*10, T = curr_temp, calc_mag = False, calc_E = False)
+            #else:
+            self.simulate(eq_time, T = curr_temp)
+
+
+            #mag_measurements = self.measure_mag_per_spin(cor_time, curr_temp)
+            #avg_mag_per_spin = reduce(lambda x,y: x+y, [item[0] for item in mag_measurements])/len(mag_measurements)
+            #if curr_temp > 1 and curr_temp < 3:
+            #    if curr_temp > 1.5 and curr_temp < 2.5:
+            #        self.simulate(cor_time*4, T = curr_temp, calc_mag = False, calc_E = False)
+            #    else:
+            #        self.simulate(cor_time*2, T = curr_temp, calc_mag = False, calc_E = False)
+
+            #else:
+            self.simulate(cor_time, T = curr_temp)
+
+            avg_mag_per_spin = self.calc_magnetization()[1]  # Mag
+            avg_mag_per_spin_1 = self.calc_magnetization(0)[1]  # Mag1
+            avg_mag_per_spin_2 = self.calc_magnetization(1)[1]  # Mag2
+
+            #print("Avg mag at temp ", curr_temp, ": ", avg_mag_per_spin)
+            #print("mags squared: ", [item[1] for item in mag_measurements])
+            #avg_mag_per_spin_sq = reduce(lambda x,y: x+y, [item[1] for item in mag_measurements])/len(mag_measurements)
+            #print("<m>: ", avg_mag_per_spin)
+            #print("<m^2>: ", avg_mag_per_spin_sq)
+            #print("<m>^2: ", power(avg_mag_per_spin, 2))
+            #chi_vals.append((avg_mag_per_spin_sq - power(avg_mag_per_spin,2))*(self.lat_size*curr_temp))
+            mag_vals.append(avg_mag_per_spin)
+            mag_vals_1.append(avg_mag_per_spin_1)
+            mag_vals_2.append(avg_mag_per_spin_2)
+
+            temp_vals.append(curr_temp)
+            print("Current temp: ", curr_temp)
+
+        plt.subplot(311)
+        plt.plot(temp_vals, mag_vals, 'go')
+        plt.ylabel('$M$')
+        plt.xlabel('T')
+
+        plt.subplot(312)
+        plt.plot(temp_vals, mag_vals_1, 'go')
+        plt.ylabel('$M_{1}$')
+        plt.xlabel('T')
+
+        plt.subplot(313)
+        plt.plot(temp_vals, mag_vals_2, 'go')
+        plt.ylabel('$M_{2}$')
+        plt.xlabel('T')
+        plt.show()
+
+
+    def cool_lattice(self, T = .1):
+        ''' Cool lattice to T = .1 '''
+        curr_temp = self.init_T
+        with open("h3d_" + str(curr_temp) + ".txt", 'w') as f:
+            f.write("Size (1d): " + str(self.rows) + " temp: " + str(curr_temp))
+            f.write("B: " + str(self.B) + " k: " + str(self.k1) + " J_intra: " + str(self.J_intra) + " J_inter: " + str(self.J_inter))
+            json.dump(self.lattice, f)
+        while curr_temp > T:
+            curr_temp -= .5
+            if curr_temp == 0:
+                curr_temp = .1
+            self.simulate(num_sweeps = 5000, T = curr_temp)
+            with open("h3d_" + str(curr_temp) + ".txt", 'w') as f:
+                f.write("temp: " + str(curr_temp))
+                json.dump(self.lattice, f)
+
+
+
 def plot_M_v_B():
+    logging.basicConfig(filename="bilayer_h.log", filemode='w',level=logging.INFO, format='%(message)s')
+
     total_mags_per_spin = []
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
-    B_vals = linspace(-20,20,num=200)
-    lat = Heisenberg3D(10, 10, k1=-2, k2=-2, init_T = 5, B=B_vals[0])
-    lat.simulate(num_sweeps = 10000, T= .001)
+    B_vals = linspace(-15,15,num=50)
+    lat = Heisenberg3D(20, 20, k1=-5, k2=-5, J_inter = .1, init_T = 5, B=B_vals[0])
+    #lat.simulate(num_sweeps = 10000, T= .1)
+    lat.cool_lattice()
+
     #print("B_vals: ", B_vals)
     #print("reversed: ", list(reversed(B_vals)))
     #print("added: ", list(B_vals)+list(reversed(B_vals)))
+    logging.info('**************************')
+    logging.info('Creating a 3D lattice with ' + str(lat.lat_size) + ' sites per layer.')
+    logging.info('B: ' + str(lat.B))
+    logging.info('M: ' + str())
     for B in B_vals:
         # Make k negative
+        # Play with temp
+        # Mag v temp
+        # strong interlayer coupling
+        # sweeping speed
+        # Should have opposite magnetization on layers - investigate
+
+        print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 100, T= .001)
+        lat.simulate(num_sweeps = 5000, T= .1)
         total_mag, total_mag_per_spin = lat.calc_magnetization()
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
@@ -255,11 +364,14 @@ def plot_M_v_B():
         #t_mags_2.append(t_mag_2)
         total_mags_per_spin_1.append(t_mag_per_spin_1)
         total_mags_per_spin_2.append(t_mag_per_spin_2)
+        logging.info('B: ' + str(B))
+        logging.info('M: ' + str(total_mag_per_spin))
 
     for B in reversed(B_vals):
         # Make k negative
+        print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 100, T= .001)
+        lat.simulate(num_sweeps = 5000, T= .1)
         total_mag, total_mag_per_spin = lat.calc_magnetization()
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
@@ -269,6 +381,8 @@ def plot_M_v_B():
         #t_mags_2.append(t_mag_2)
         total_mags_per_spin_1.append(t_mag_per_spin_1)
         total_mags_per_spin_2.append(t_mag_per_spin_2)
+        logging.info('B: ' + str(B))
+        logging.info('M: ' + str(total_mag_per_spin))
     #plt.subplot(321)   # Total magnetization, both lattices
     #plt.plot(k_vals, total_mags)
 
@@ -355,10 +469,14 @@ def plot_M_v_k(B = 0):
 
 
 if __name__ == "__main__":
-    #lat = Heisenberg3D(50,50, init_T = 2)
+    #lat = Heisenberg3D(20,20, init_T = 2)
     #lat.simulate(num_sweeps = 10000, T=.001)
     #lat.calc_magnetization()
     #lat.calc_magnetization(0)
     #lat.calc_magnetization(1)
+
+    #lat.mag_v_temp(init_temp = 5, final_temp=0.1, temp_step=.1, eq_time=1000, cor_time=100)
+
     plot_M_v_B()
+
     #plot_M_v_k()
