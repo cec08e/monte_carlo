@@ -2,18 +2,20 @@ from __future__ import print_function
 from numpy.random import uniform
 from numpy.random import random, randint, rand
 from numpy import power,sqrt,pi,sin,cos,arccos,arctan
-from numpy import dot, cross, add, exp
+from numpy import dot, cross, add, exp, linspace
 from numpy.linalg import norm
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import colors
 
 class Heisenberg2D(object):
-    def __init__(self, rows, cols, init_T = 0, B = 0, J = 1, D = .5):
+    def __init__(self, rows, cols, init_T = 0, k=0, B = 0, J = 1, D = .5):
         self.rows = rows
         self.cols = cols
         self.J = J
         self.D = D
+        self.B = B
+        self.k=k
         self.lat_size = rows*cols
         self.initialize(init_T, B)
         self.sweep_num=0
@@ -116,9 +118,9 @@ class Heisenberg2D(object):
         self.sweep_num = 1
         for i in range(num_sweeps):
             self.sweep(T)
-            if i+1 in [1,10,100,1000,10000]:
-                self.visualize_lattice()
-                self.visualize_spins()
+            #if i+1 in [1,10,100,1000,10000]:
+            #    self.visualize_lattice()
+            #    self.visualize_spins()
 
 
     def sweep(self, T):
@@ -171,9 +173,9 @@ class Heisenberg2D(object):
         delta_D += dot((-1*self.D,0,0), cross(delta_spin, self.lattice[row][(col-1)%self.cols]))    # west neighbor
         delta_D += dot((self.D,0,0), cross(delta_spin, self.lattice[row][(col+1)%self.cols]))    # east neighbor
 
-
+        delta_a = self.k*(power(delta_spin[2],2) + 2*delta_spin[2]*spin[2])
         # DM term: D * (Si x Sj) where D = self.D(r_ij x z)
-        return -self.J*dot(delta_spin, neighbor_sum) - delta_D
+        return -self.J*dot(delta_spin, neighbor_sum) - delta_D + delta_a - self.B*(delta_spin[2])
 
     def visualize_lattice(self):
         #norm = colors.Normalize(vmin=-1, vmax=1)
@@ -195,7 +197,54 @@ class Heisenberg2D(object):
         ax.set_zlim(-1.5,1.5)
         plt.show()
 
+    def calc_magnetization(self):
+
+        mag = 0.0
+        mag_spin = 0.0
+
+        for row in self.lattice:
+            for spin in row:
+                mag += spin[2]
+        mag_spin = (mag/(self.lat_size))
+
+        print("Magnetization is: ", mag)
+        print("Magnetization per spin is: ", mag_spin)
+
+        return mag, mag_spin
+
+def plot_M_v_B():
+    total_mags_per_spin = []
+
+    B_vals = linspace(-5,5,num=100)
+    lat = Heisenberg2D(10, 10, k=-1, init_T = 5, B=B_vals[0], D=0)
+    lat.simulate(num_sweeps = 10000, T= .5)
+
+    for B in B_vals:
+        print("B: ", B)
+        lat.B = B
+        lat.simulate(num_sweeps = 5000, T= .5)
+        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        total_mags_per_spin.append(total_mag_per_spin)
+
+    for B in reversed(B_vals):
+        print("B: ", B)
+        lat.B = B
+        lat.simulate(num_sweeps = 5000, T= .5)
+        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        total_mags_per_spin.append(total_mag_per_spin)
+
+
+    plt.subplot(111)   # Magnetization per spin, both lattices
+    plt.plot(list(B_vals), total_mags_per_spin[0:len(list(B_vals))], 'r')
+    plt.plot(list(reversed(B_vals)), total_mags_per_spin[len(list(B_vals)):], 'b')
+
+    plt.ylabel("M")
+    plt.xlabel("B")
+
+
+    plt.show()
 
 if __name__ == "__main__":
-    lat = Heisenberg2D(20,20, init_T = 2)
-    lat.simulate(num_sweeps = 10000, T=.001)
+    #lat = Heisenberg2D(20,20, init_T = 2)
+    #lat.simulate(num_sweeps = 10000, T=.001)
+    plot_M_v_B()

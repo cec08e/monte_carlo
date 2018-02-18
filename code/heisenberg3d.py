@@ -314,21 +314,25 @@ class Heisenberg3D(object):
         plt.show()
 
 
-    def cool_lattice(self, T = .1):
+    def cool_lattice(self, T = .5):
         ''' Cool lattice to T = .1 '''
         curr_temp = self.init_T
-        with open("h3d_" + str(curr_temp) + ".txt", 'w') as f:
-            f.write("Size (1d): " + str(self.rows) + " temp: " + str(curr_temp))
-            f.write("B: " + str(self.B) + " k: " + str(self.k1) + " J_intra: " + str(self.J_intra) + " J_inter: " + str(self.J_inter))
-            json.dump(self.lattice, f)
+        #with open("h3d_" + str(curr_temp) + ".txt", 'w') as f:
+        #    f.write("Size (1d): " + str(self.rows) + " temp: " + str(curr_temp))
+        #    f.write("B: " + str(self.B) + " k: " + str(self.k1) + " J_intra: " + str(self.J_intra) + " J_inter: " + str(self.J_inter))
+        #    json.dump(self.lattice, f)
         while curr_temp > T:
-            curr_temp -= .5
-            if curr_temp == 0:
-                curr_temp = .1
+            curr_temp -= .015
+            print("Cooling to ", curr_temp)
+
+            #if curr_temp == 0:
+            #    curr_temp = .5
             self.simulate(num_sweeps = 5000, T = curr_temp)
-            with open("h3d_" + str(curr_temp) + ".txt", 'w') as f:
-                f.write("temp: " + str(curr_temp))
-                json.dump(self.lattice, f)
+            #with open("h3d_" + str(curr_temp) + ".txt", 'w') as f:
+            #    f.write("temp: " + str(curr_temp))
+            #    json.dump(self.lattice, f)
+        with open("h3d_.5.txt", 'w') as f:
+            json.dump(self.lattice, f)
 
 
 
@@ -338,10 +342,10 @@ def plot_M_v_B():
     total_mags_per_spin = []
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
-    B_vals = linspace(-5,5,num=20)
+    B_vals = linspace(-5,5,num=100)
     lat = Heisenberg3D(10, 10, k1=-1, k2=-1, J_inter = 1, init_T = 5, B=B_vals[0])
-    lat.simulate(num_sweeps = 10000, T= 1)
-    #lat.cool_lattice()
+    #lat.simulate(num_sweeps = 10000, T= .5)
+    lat.cool_lattice(.5)
 
     #print("B_vals: ", B_vals)
     #print("reversed: ", list(reversed(B_vals)))
@@ -360,7 +364,7 @@ def plot_M_v_B():
 
         print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 50000, T= 1)
+        lat.simulate(num_sweeps = 5000, T= .5)
         total_mag, total_mag_per_spin = lat.calc_magnetization()
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
@@ -377,7 +381,7 @@ def plot_M_v_B():
         # Make k negative
         print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 50000, T= 1)
+        lat.simulate(num_sweeps = 5000, T= .5)
         total_mag, total_mag_per_spin = lat.calc_magnetization()
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
