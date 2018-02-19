@@ -132,7 +132,7 @@ class Heisenberg3D(object):
     def sweep(self, T):
         # Perform as many steps as there are lattice sites
         num_accept = 0
-        for step in range(self.lat_size):
+        for step in range(2*self.lat_size):
             # Select a new state by randomly choosing a spin to perturb
             # Note: NumPy randint arguments are on a half-open interval
             chosen_site_lay = randint(0, 2)
@@ -322,7 +322,7 @@ class Heisenberg3D(object):
         #    f.write("B: " + str(self.B) + " k: " + str(self.k1) + " J_intra: " + str(self.J_intra) + " J_inter: " + str(self.J_inter))
         #    json.dump(self.lattice, f)
         while curr_temp > T:
-            curr_temp -= .015
+            curr_temp -= .045
             print("Cooling to ", curr_temp)
 
             #if curr_temp == 0:
@@ -331,7 +331,7 @@ class Heisenberg3D(object):
             #with open("h3d_" + str(curr_temp) + ".txt", 'w') as f:
             #    f.write("temp: " + str(curr_temp))
             #    json.dump(self.lattice, f)
-        with open("h3d_.5.txt", 'w') as f:
+        with open("h3d_.5_20.txt", 'w') as f:
             json.dump(self.lattice, f)
 
 
@@ -343,7 +343,7 @@ def plot_M_v_B():
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
     B_vals = linspace(-5,5,num=100)
-    lat = Heisenberg3D(10, 10, k1=-1, k2=-1, J_inter = 1, init_T = 5, B=B_vals[0])
+    lat = Heisenberg3D(20, 20, k1=-1, k2=-1, J_inter = 1, init_T = 5, B=B_vals[0])
     #lat.simulate(num_sweeps = 10000, T= .5)
     lat.cool_lattice(.5)
 
