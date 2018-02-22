@@ -1,3 +1,7 @@
+"""            Heisenberg 3D Optimized   - JIT           """
+
+
+
 from __future__ import print_function
 from numpy.random import uniform
 from numpy.random import random, randint, rand
@@ -9,12 +13,80 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 import logging
 import json
+from numba import jit, int32, float64, float_
 
 
 # Check:
 #- random spin generation: actually random?
 #- delta E calculation
 #- accepting ratio
+
+@jit(float_[:]())
+def gen_random_spin_jit():
+    '''
+    Generates a random spin orientation using Marsaglia's
+    method. First, we uniformly generate two numbers
+    x1 and x2 from [-1,1], throwing away the case where
+    their collective magnitude is >= 1. From these,
+    we generate the points x,y,z which are uniformly
+    distributed on the sphere.
+    '''
+    x1 = uniform(-1,1)
+    x2 = uniform(-1,1)
+    mag_sq = (power(x1,2) + power(x2,2))
+    while mag_sq >= 1:
+        x1 = uniform(-1,1)
+        x2 = uniform(-1,1)
+        mag_sq = (power(x1,2) + power(x2,2))
+
+    return (2*x1*sqrt(1-mag_sq), 2*x2*sqrt(1-mag_sq), 1-2*mag_sq)
+
+@jit(float_[:](float_[:]))
+def perturb_jit(spin):
+    '''
+    - Generate point x,y in circle with radius R
+      see: http://xdpixel.com/random-points-in-a-circle/
+    - Place point on tangent plane defined by current spin vector
+        - Shift x,y origin by adding current spin vector.
+        - Rotate plane by theta of current spin vector.
+
+    '''
+    R = .6    # Optimal value should be about .4 according to Nehme et al.
+
+    r = sqrt(random())*R
+    arg = random()*2*pi   # can make 2pi a const
+
+    # Express random point as cartesian coordinate in same reference frame as spin
+    x = r*sin(arg)
+    y = r*cos(arg)
+    z = 0
+
+    # Grab spherical coordinates of spin vector
+    theta = arccos(spin[2])  # theta = arccos(z) since spin is unit vector
+    if spin[0] == 0:
+        if spin[1] > 0:
+            phi = pi/2.0
+        else:
+            phi = 3*pi/2.0
+    else:
+        phi = arctan(spin[1]/spin[0]) # phi = arctan(y/x)
+
+    # Rotate random point with phi
+    x, y = x*cos(phi) - y*sin(phi), x*sin(phi) + y*cos(phi)
+
+    # Now, rotate random point with theta - rotate around y' = -sin(phi), cos(phi) axis
+    u_x = -sin(phi)
+    u_y = cos(phi)
+
+    R_matrix = [[cos(theta) + power(u_x,2)*(1-cos(theta)), u_x*u_y*(1-cos(theta)), u_y*sin(theta)],
+                [u_x*u_y*(1-cos(theta)), cos(theta) + power(u_y,2)*(1-cos(theta)), -u_x*sin(theta)],
+                [-u_y*sin(theta), u_x*sin(theta), cos(theta)]]
+
+    final_point = dot(R_matrix, [x, y, z]) + spin
+    final_point = final_point/norm(final_point)
+    return tuple(final_point) # Return the perturbed spin
+
+
 
 class Heisenberg3D(object):
     ''' Bilayer implementation '''
@@ -40,81 +112,11 @@ class Heisenberg3D(object):
         # Two layers
         self.lattice = [[[ self.gen_random_spin() for j in range(self.cols)] for i in range(self.rows)] for g in range(2)]
 
-
     def gen_random_spin(self):
-        '''
-        Generates a random spin orientation using Marsaglia's
-        method. First, we uniformly generate two numbers
-        x1 and x2 from [-1,1], throwing away the case where
-        their collective magnitude is >= 1. From these,
-        we generate the points x,y,z which are uniformly
-        distributed on the sphere.
-        '''
-        x1 = uniform(-1,1)
-        x2 = uniform(-1,1)
-        mag_sq = (power(x1,2) + power(x2,2))
-        while mag_sq >= 1:
-            x1 = uniform(-1,1)
-            x2 = uniform(-1,1)
-            mag_sq = (power(x1,2) + power(x2,2))
-
-        return (2*x1*sqrt(1-mag_sq), 2*x2*sqrt(1-mag_sq), 1-2*mag_sq)
+        return gen_random_spin_jit()
 
     def perturb(self, spin):
-        '''
-        - Generate point x,y in circle with radius R
-          see: http://xdpixel.com/random-points-in-a-circle/
-        - Place point on tangent plane defined by current spin vector
-            - Shift x,y origin by adding current spin vector.
-            - Rotate plane by theta of current spin vector.
-
-        '''
-        R = .6    # Optimal value should be about .4 according to Nehme et al.
-        #fig = plt.figure()
-        #ax = fig.add_subplot(111, projection='3d')
-        #ax.scatter(*spin, c='r', marker='^')
-        #print("Spin vector is ", spin)
-        #const = (power(spin[0],2) + power(spin[1],2) + power(spin[2],2))
-        #print("Tangent plane defined by const = ", const)
-        r = sqrt(random())*R
-        arg = random()*2*pi   # can make 2pi a const
-
-        # Express random point as cartesian coordinate in same reference frame as spin
-        x = r*sin(arg)
-        y = r*cos(arg)
-        z = 0
-
-        # Grab spherical coordinates of spin vector
-        theta = arccos(spin[2])  # theta = arccos(z) since spin is unit vector
-        if spin[0] == 0:
-            if spin[1] > 0:
-                phi = pi/2.0
-            else:
-                phi = 3*pi/2.0
-        else:
-            phi = arctan(spin[1]/spin[0]) # phi = arctan(y/x)
-
-        # Rotate random point with phi
-        x, y = x*cos(phi) - y*sin(phi), x*sin(phi) + y*cos(phi)
-
-        # Now, rotate random point with theta - rotate around y' = -sin(phi), cos(phi) axis
-        u_x = -sin(phi)
-        u_y = cos(phi)
-
-        R_matrix = [[cos(theta) + power(u_x,2)*(1-cos(theta)), u_x*u_y*(1-cos(theta)), u_y*sin(theta)],
-                    [u_x*u_y*(1-cos(theta)), cos(theta) + power(u_y,2)*(1-cos(theta)), -u_x*sin(theta)],
-                    [-u_y*sin(theta), u_x*sin(theta), cos(theta)]]
-
-        final_point = dot(R_matrix, [x, y, z]) + spin
-        final_point = final_point/norm(final_point)
-        #print(final_point)
-        #print("Equation result: ", (final_point[0]*spin[0] + final_point[1]*spin[1] + final_point[2]*spin[2]))
-        #ax.scatter(*final_point, c='b', marker='o')
-        #ax.set_xlim(-1,1)
-        #ax.set_ylim(-1,1)
-        #ax.set_zlim(-1,1)
-        #plt.show()
-        return tuple(final_point) # Return the perturbed spin
+        return perturb_jit(spin)
 
     def simulate(self, num_sweeps, T, filename=None):
         self.sweep_num = 1
@@ -128,7 +130,7 @@ class Heisenberg3D(object):
                     #self.visualize_spins()
         print("Acceptance ratio is: ", total_accept/(num_sweeps*self.lat_size))
 
-
+    #@jit(int32(object_,float64))
     def sweep(self, T):
         # Perform as many steps as there are lattice sites
         num_accept = 0
@@ -544,6 +546,7 @@ def plot_M_v_k(B = 0):
 
 
 if __name__ == "__main__":
+    print("Running optimized heisenberg implementation...")
     lat = Heisenberg3D(10,10, init_T = 5)
     #lat.simulate(num_sweeps = 10000, T=.001)
     #lat.calc_magnetization()
