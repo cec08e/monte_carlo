@@ -14,6 +14,7 @@ from matplotlib import colors
 import logging
 import json
 from numba import jit, int32, float64, float_
+import time
 
 
 # Check:
@@ -547,6 +548,7 @@ def plot_M_v_k(B = 0):
 
 if __name__ == "__main__":
     print("Running optimized heisenberg implementation...")
+    start = time.time()
     lat = Heisenberg3D(10,10, init_T = 5)
     #lat.simulate(num_sweeps = 10000, T=.001)
     #lat.calc_magnetization()
@@ -558,3 +560,6 @@ if __name__ == "__main__":
     #plot_M_v_B()
     #sweep_k()
     #plot_M_v_k()
+    end = time.time()
+
+    print("Execution time (numba):", end - start)
