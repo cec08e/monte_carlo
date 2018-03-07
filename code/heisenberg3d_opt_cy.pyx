@@ -130,6 +130,10 @@ cdef class Heisenberg3D(object):
     cdef int sweep(self, float T):
         # Perform as many steps as there are lattice sites
         cdef double [:] temp_spin
+        cdef double [:] spin
+        cdef double [:] delta_spin
+        cdef double [:] neighbor_sum
+        cdef double delta_a
         cdef int chosen_site_lay, chosen_site_row, chosen_site_col
         cdef int num_accept
         cdef float delta_E
@@ -146,8 +150,29 @@ cdef class Heisenberg3D(object):
             # Calculate the difference in energy between new and old state
             # Using the summation trick of Newman, Barkema (equation 3.10)
             temp_spin = self.perturb(spin)
-            delta_E = self.calc_delta_E(temp_spin, chosen_site_lay, chosen_site_row, chosen_site_col)
-            #print("Delta E: ", delta_E)
+
+
+            #### Moving delta_E calculation into function here ####
+
+            #delta_E = self.calc_delta_E(temp_spin, chosen_site_lay, chosen_site_row, chosen_site_col)
+
+            spin = array(self.lattice[chosen_site_lay][chosen_site_row][chosen_site_col], float)
+
+            delta_spin = array([temp_spin[i] - spin[i] for i in range(3)], float)
+            neighbor_sum = self.lattice[chosen_site_lay][(chosen_site_row-1)%self.rows][chosen_site_col] # north neighbor
+            neighbor_sum = add(neighbor_sum, self.lattice[chosen_site_lay][(chosen_site_row+1)%self.rows][chosen_site_col]) # south neighbor
+            neighbor_sum = add(neighbor_sum, self.lattice[chosen_site_lay][chosen_site_row][(chosen_site_col-1)%self.cols]) # west neighbor
+            neighbor_sum = add(neighbor_sum, self.lattice[chosen_site_lay][chosen_site_row][(chosen_site_col+1)%self.cols]) # east neighbor
+
+            if chosen_site_lay == 0:
+                delta_a = self.k1*(power(delta_spin[2],2) + 2*delta_spin[2]*spin[2])
+            else:
+                delta_a = self.k2*(power(delta_spin[2],2) + 2*delta_spin[2]*spin[2])
+
+            delta_E = -self.J_intra*dot(delta_spin, neighbor_sum) + self.J_inter*dot(delta_spin, self.lattice[(chosen_site_lay+1)%2][chosen_site_row][chosen_site_col]) + delta_a - self.B*(delta_spin[2])
+            ##### End delta_E calculation ######
+
+
 
             if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E))):
                 #accept_flag = False
@@ -161,7 +186,7 @@ cdef class Heisenberg3D(object):
         #self.mag_vals.append(self.mag/self.lat_size)
         self.sweep_num += 1
         return num_accept
-
+    '''
     cdef float calc_delta_E(self, double [:] temp_spin, int layer, int row, int col):
         # Change in energy given by -J*(delta_spin)*(neighbors)
         cdef double [:] spin
@@ -185,7 +210,7 @@ cdef class Heisenberg3D(object):
             delta_a = self.k2*(power(delta_spin[2],2) + 2*delta_spin[2]*spin[2])
 
         return -self.J_intra*dot(delta_spin, neighbor_sum) + self.J_inter*dot(delta_spin, self.lattice[(layer+1)%2][row][col]) + delta_a - self.B*(delta_spin[2])
-
+    '''
     def visualize_lattice(self):
         norm = colors.Normalize(vmin=-1, vmax=1)
         plt.subplot(121)
@@ -203,7 +228,7 @@ cdef class Heisenberg3D(object):
     # DM vector - bulk vector pointing from i to j
     # symmetry breaking rij cross z
 
-    def calc_magnetization(self, layer = None):
+    cpdef float calc_magnetization(self, int layer = -1):
         ''' Calculate the magnetization of the system, either as a whole or
             for a specific layer.
 
@@ -211,9 +236,10 @@ cdef class Heisenberg3D(object):
             to None if no layer is selected and all spins are taken into account.
             :type layer: int.
         '''
+        cdef float mag, mag_spin
         mag = 0.0
         mag_spin = 0.0
-        if layer is None:
+        if layer is -1:
             # Calc magnetization for both layers
             for layer in self.lattice:
                 for row in layer:
@@ -227,10 +253,10 @@ cdef class Heisenberg3D(object):
                     mag += spin[2]
             mag_spin = mag/self.lat_size
 
-        print("Magnetization is: ", mag)
+        #print("Magnetization is: ", mag)
         print("Magnetization per spin is: ", mag_spin)
 
-        return mag, mag_spin
+        return mag_spin
 
 
     def visualize_spins(self):
@@ -262,9 +288,9 @@ cdef class Heisenberg3D(object):
 
             self.simulate(cor_time, T = curr_temp)
 
-            avg_mag_per_spin = self.calc_magnetization()[1]  # Mag
-            avg_mag_per_spin_1 = self.calc_magnetization(0)[1]  # Mag1
-            avg_mag_per_spin_2 = self.calc_magnetization(1)[1]  # Mag2
+            avg_mag_per_spin = self.calc_magnetization()  # Mag
+            avg_mag_per_spin_1 = self.calc_magnetization(0)  # Mag1
+            avg_mag_per_spin_2 = self.calc_magnetization(1)  # Mag2
 
             mag_vals.append(avg_mag_per_spin)
             mag_vals_1.append(avg_mag_per_spin_1)
@@ -308,23 +334,28 @@ cdef class Heisenberg3D(object):
 
 
 def sweep_k():
+    cdef float k
+    cdef double [:] k_vals
+    #cdef float [:] total_mags_per_spin
+    #cdef float [:] total_mags_per_spin_1
+    #cdef float [:] total_mags_per_spin_2
     start = time.time()
-    k_vals = linspace(-5,3,num=100)
+    k_vals = linspace(-5,0,num=100)
     B_SWITCH = .75
     total_mags_per_spin = []
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
-    lat = Heisenberg3D(10, 10, k1=-5, k2=-5, J_inter = 1, init_T = 5, B=B_SWITCH)
+    lat = Heisenberg3D(10, 10, k1=-5, k2=-5, J_inter = .5, init_T = 5, B=B_SWITCH)
     #lat.simulate(num_sweeps = 10000, T= .5)
-    lat.cool_lattice(.5)
+    lat.cool_lattice(.1)
     for k in k_vals:
         lat.k1 = k
         lat.k2 = k
         print("k = ", k)
-        lat.simulate(num_sweeps = 7000, T= .5)
-        total_mag, total_mag_per_spin = lat.calc_magnetization()
-        t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
-        t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
+        lat.simulate(num_sweeps = 7000, T= .1)
+        total_mag_per_spin = lat.calc_magnetization()
+        t_mag_per_spin_1 = lat.calc_magnetization(0)
+        t_mag_per_spin_2 = lat.calc_magnetization(1)
         total_mags_per_spin.append(total_mag_per_spin)
         total_mags_per_spin_1.append(t_mag_per_spin_1)
         total_mags_per_spin_2.append(t_mag_per_spin_2)
@@ -333,10 +364,10 @@ def sweep_k():
         lat.k1 = k
         lat.k2 = k
         print("k = ", k)
-        lat.simulate(num_sweeps = 7000, T= .5)
-        total_mag, total_mag_per_spin = lat.calc_magnetization()
-        t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
-        t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
+        lat.simulate(num_sweeps = 7000, T= .1)
+        total_mag_per_spin = lat.calc_magnetization()
+        t_mag_per_spin_1 = lat.calc_magnetization(0)
+        t_mag_per_spin_2 = lat.calc_magnetization(1)
         total_mags_per_spin.append(total_mag_per_spin)
         total_mags_per_spin_1.append(t_mag_per_spin_1)
         total_mags_per_spin_2.append(t_mag_per_spin_2)
@@ -520,16 +551,16 @@ def plot_M_v_k(B = 0):
 
 if __name__ == "__main__":
     start = time.time()
-    lat = Heisenberg3D(10,10, init_T = 5)
+    #lat = Heisenberg3D(10,10, init_T = 5)
     #lat.simulate(num_sweeps = 10000, T=.001)
     #lat.calc_magnetization()
     #lat.calc_magnetization(0)
     #lat.calc_magnetization(1)
 
-    lat.mag_v_temp(init_temp = 5, final_temp=0.01, temp_step=.05, eq_time=7000, cor_time=1000)
+    #lat.mag_v_temp(init_temp = 5, final_temp=0.01, temp_step=.05, eq_time=7000, cor_time=1000)
 
     #plot_M_v_B()
-    #sweep_k()
+    sweep_k()
     #plot_M_v_k()
     end = time.time()
 
