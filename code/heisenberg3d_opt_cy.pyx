@@ -14,6 +14,7 @@ from matplotlib import colors
 import logging
 import json
 import time
+import pickle
 
 # Change last dimension of lattice to 3 and all spin vectors to dimension 3?
 
@@ -228,7 +229,7 @@ cdef class Heisenberg3D(object):
     # DM vector - bulk vector pointing from i to j
     # symmetry breaking rij cross z
 
-    cpdef float calc_magnetization(self, int layer = -1):
+    cpdef float calc_magnetization(self, int layer):
         ''' Calculate the magnetization of the system, either as a whole or
             for a specific layer.
 
@@ -239,14 +240,23 @@ cdef class Heisenberg3D(object):
         cdef float mag, mag_spin
         mag = 0.0
         mag_spin = 0.0
-        if layer is -1:
+        #print("In calc mag")
+        if layer == -1:
+            #print("In calc mag -1")
+
             # Calc magnetization for both layers
-            for layer in self.lattice:
-                for row in layer:
+            for lay in self.lattice:
+                #print("In layer loop, layer = ", lay)
+                for row in lay:
+                    #print("in row loop, row = ", row)
                     for spin in row:
+                        #print("In spin loop, spin = ", spin)
                         mag += spin[2]
+            #print("Reassigning mag spin")
             mag_spin = (mag/(self.lat_size*2))
         else:
+            #print("In calc mag else")
+
             # Only magnetization for the first or second layer
             for row in self.lattice[layer]:
                 for spin in row:
@@ -288,7 +298,7 @@ cdef class Heisenberg3D(object):
 
             self.simulate(cor_time, T = curr_temp)
 
-            avg_mag_per_spin = self.calc_magnetization()  # Mag
+            avg_mag_per_spin = self.calc_magnetization(-1)  # Mag
             avg_mag_per_spin_1 = self.calc_magnetization(0)  # Mag1
             avg_mag_per_spin_2 = self.calc_magnetization(1)  # Mag2
 
@@ -330,6 +340,13 @@ cdef class Heisenberg3D(object):
         #with open("h3d_.5_20.txt", 'w') as f:
         #    json.dump(self.lattice, f)
 
+    def record_lattice(self, filename = 'save_lattice.p'):
+        l = [[[ list(self.lattice[g][i][j]) for j in range(self.cols)] for i in range(self.rows)] for g in range(2)]
+        pickle.dump( l, open( filename, "wb" ) )
+
+
+
+
 
 
 
@@ -347,13 +364,16 @@ def sweep_k():
     total_mags_per_spin_2 = []
     lat = Heisenberg3D(10, 10, k1=-5, k2=-5, J_inter = .5, init_T = 5, B=B_SWITCH)
     #lat.simulate(num_sweeps = 10000, T= .5)
+    lat.record_lattice('save_lattice_test.p')
     lat.cool_lattice(.1)
+    lat.record_lattice('save_lattice.p')
+
     for k in k_vals:
         lat.k1 = k
         lat.k2 = k
         print("k = ", k)
         lat.simulate(num_sweeps = 7000, T= .1)
-        total_mag_per_spin = lat.calc_magnetization()
+        total_mag_per_spin = lat.calc_magnetization(-1)
         t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_per_spin_2 = lat.calc_magnetization(1)
         total_mags_per_spin.append(total_mag_per_spin)
@@ -365,7 +385,7 @@ def sweep_k():
         lat.k2 = k
         print("k = ", k)
         lat.simulate(num_sweeps = 7000, T= .1)
-        total_mag_per_spin = lat.calc_magnetization()
+        total_mag_per_spin = lat.calc_magnetization(-1)
         t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_per_spin_2 = lat.calc_magnetization(1)
         total_mags_per_spin.append(total_mag_per_spin)
@@ -436,7 +456,7 @@ def plot_M_v_B():
         print("B: ", B)
         lat.B = B
         lat.simulate(num_sweeps = 5000, T= .5)
-        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        total_mag, total_mag_per_spin = lat.calc_magnetization(-1)
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
         #total_mags.append(total_mag)
@@ -453,7 +473,7 @@ def plot_M_v_B():
         print("B: ", B)
         lat.B = B
         lat.simulate(num_sweeps = 5000, T= .5)
-        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        total_mag, total_mag_per_spin = lat.calc_magnetization(-1)
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
         #total_mags.append(total_mag)
@@ -505,7 +525,7 @@ def plot_M_v_k(B = 0):
     for k in k_vals:
         lat = Heisenberg3D(10,10, k1=k, k2=k,init_T = 2, B = B)
         lat.simulate(num_sweeps = 5000, T= .001)
-        total_mag, total_mag_per_spin = lat.calc_magnetization()
+        total_mag, total_mag_per_spin = lat.calc_magnetization(-1)
         t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
         total_mags.append(total_mag)
