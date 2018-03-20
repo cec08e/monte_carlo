@@ -84,7 +84,10 @@ cdef class Heisenberg3D(object):
         cdef double R, r, arg, theta, phi
         cdef double x, y, z, u_x, u_y
 
-        R = .6    # Optimal value should be about .4 according to Nehme et al.
+        # Push R to sample half of sphere,  or generate random spin
+        R = 100   # Optimal value should be about .4 according to Nehme et al.
+
+
         r = sqrt(random())*R
         arg = random()*2*pi   # can make 2pi a const
 
@@ -125,7 +128,7 @@ cdef class Heisenberg3D(object):
         print("Simulating ", num_sweeps, " sweeps at T=", T)
         for i in range(num_sweeps):
             total_accept += self.sweep(T)
-        print("Acceptance ratio is: ", total_accept/(num_sweeps*self.lat_size))
+        print("Acceptance ratio is: ", float(total_accept)/(num_sweeps*2*self.lat_size))
 
 
     cdef int sweep(self, float T):
@@ -332,10 +335,10 @@ cdef class Heisenberg3D(object):
         cdef int num_sweeps
         curr_temp = self.init_T
         while curr_temp > T:
-            curr_temp -= .045
+            curr_temp -= .035
             print("Cooling to ", curr_temp)
 
-            self.simulate(num_sweeps = 5000, T = curr_temp)
+            self.simulate(num_sweeps = 10000, T = curr_temp)
 
         #with open("h3d_.5_20.txt", 'w') as f:
         #    json.dump(self.lattice, f)
@@ -362,17 +365,17 @@ def sweep_k():
     total_mags_per_spin = []
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
-    lat = Heisenberg3D(10, 10, k1=-5, k2=-5, J_inter = .5, init_T = 5, B=B_SWITCH)
+    lat = Heisenberg3D(20, 20, k1=-5, k2=-5, J_inter = 1, init_T = 5, B=B_SWITCH)
     #lat.simulate(num_sweeps = 10000, T= .5)
-    lat.record_lattice('save_lattice_test.p')
+    #lat.record_lattice('save_lattice_test.p')
     lat.cool_lattice(.1)
-    lat.record_lattice('save_lattice.p')
+    lat.record_lattice('save_lattice_2020_1.p')
 
     for k in k_vals:
         lat.k1 = k
         lat.k2 = k
         print("k = ", k)
-        lat.simulate(num_sweeps = 7000, T= .1)
+        lat.simulate(num_sweeps = 5000, T= .1)
         total_mag_per_spin = lat.calc_magnetization(-1)
         t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_per_spin_2 = lat.calc_magnetization(1)
@@ -384,7 +387,7 @@ def sweep_k():
         lat.k1 = k
         lat.k2 = k
         print("k = ", k)
-        lat.simulate(num_sweeps = 7000, T= .1)
+        lat.simulate(num_sweeps = 5000, T= .1)
         total_mag_per_spin = lat.calc_magnetization(-1)
         t_mag_per_spin_1 = lat.calc_magnetization(0)
         t_mag_per_spin_2 = lat.calc_magnetization(1)
@@ -427,16 +430,19 @@ def sweep_k():
 
 
 
-def plot_M_v_B():
-    logging.basicConfig(filename="bilayer_h.log", filemode='w',level=logging.INFO, format='%(message)s')
-    print("50,000 sweeps per measure.")
+cpdef plot_M_v_B():
+    #logging.basicConfig(filename="bilayer_h.log", filemode='w',level=logging.INFO, format='%(message)s')
+    #print("50,000 sweeps per measure.")
     total_mags_per_spin = []
     total_mags_per_spin_1 = []
     total_mags_per_spin_2 = []
-    B_vals = linspace(-5,5,num=100)
-    lat = Heisenberg3D(20, 20, k1=-1, k2=-1, J_inter = 1, init_T = 5, B=B_vals[0])
+    cdef float B
+    cdef double [:] B_vals
+    B_vals = linspace(-3,3,num=100) #NOTE change from -5-5, to -3-3
+    lat = Heisenberg3D(10, 10, k1=-1, k2=-1, J_inter = .1, init_T = 5, B=B_vals[0])
     #lat.simulate(num_sweeps = 10000, T= .5)
-    lat.cool_lattice(.5)
+    lat.cool_lattice(.1)
+
 
     #print("B_vals: ", B_vals)
     #print("reversed: ", list(reversed(B_vals)))
@@ -455,35 +461,35 @@ def plot_M_v_B():
 
         print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 5000, T= .5)
-        total_mag, total_mag_per_spin = lat.calc_magnetization(-1)
-        t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
-        t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
+        lat.simulate(num_sweeps = 15000, T= .1)
+        total_mag_per_spin = lat.calc_magnetization(-1)
+        t_mag_per_spin_1 = lat.calc_magnetization(0)
+        t_mag_per_spin_2 = lat.calc_magnetization(1)
         #total_mags.append(total_mag)
         total_mags_per_spin.append(total_mag_per_spin)
         #t_mags_1.append(t_mag_1)
         #t_mags_2.append(t_mag_2)
         total_mags_per_spin_1.append(t_mag_per_spin_1)
         total_mags_per_spin_2.append(t_mag_per_spin_2)
-        logging.info('B: ' + str(B))
-        logging.info('M: ' + str(total_mag_per_spin))
+        #logging.info('B: ' + str(B))
+        #logging.info('M: ' + str(total_mag_per_spin))
 
     for B in reversed(B_vals):
         # Make k negative
         print("B: ", B)
         lat.B = B
-        lat.simulate(num_sweeps = 5000, T= .5)
-        total_mag, total_mag_per_spin = lat.calc_magnetization(-1)
-        t_mag_1, t_mag_per_spin_1 = lat.calc_magnetization(0)
-        t_mag_2, t_mag_per_spin_2 = lat.calc_magnetization(1)
+        lat.simulate(num_sweeps = 15000, T= .1)
+        total_mag_per_spin = lat.calc_magnetization(-1)
+        t_mag_per_spin_1 = lat.calc_magnetization(0)
+        t_mag_per_spin_2 = lat.calc_magnetization(1)
         #total_mags.append(total_mag)
         total_mags_per_spin.append(total_mag_per_spin)
         #t_mags_1.append(t_mag_1)
         #t_mags_2.append(t_mag_2)
         total_mags_per_spin_1.append(t_mag_per_spin_1)
         total_mags_per_spin_2.append(t_mag_per_spin_2)
-        logging.info('B: ' + str(B))
-        logging.info('M: ' + str(total_mag_per_spin))
+        #logging.info('B: ' + str(B))
+        #logging.info('M: ' + str(total_mag_per_spin))
     #plt.subplot(321)   # Total magnetization, both lattices
     #plt.plot(k_vals, total_mags)
 

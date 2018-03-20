@@ -1,0 +1,60 @@
+\documentclass{article}
+\usepackage{amsthm}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{subfig}
+\usepackage{physics}
+
+\begin{document}
+\section{The Hamiltonian}
+We are looking at a bilayer Heisenberg spin model where each layer contains $N\times N$ spins. The
+Hamiltonian is
+\begin{equation}
+  H = H_{intra} + H_{inter} + H_{an} + H_{ext}
+\end{equation}
+where the \emph{intralayer exchange interaction} term is
+$$ H_{intra} = -\sum_{l}\sum_{<i,j>}J_{intra,ij}\vec{S}_{i}^{(l)}\cdot \vec{S}_{j}^{(l)}$$
+where the sum is taken over nearest neighbors within the same
+layer, indicated by $l$. The minus sign out front indicates that a strong, positive $J_{intra, ij}$
+causes intralayer alignment to be energetically favorable.
+The intralayer exchange interaction strength $J_{intra,ij}$ is the same for all
+pairs $i,j$ so we can simply write
+$$ H_{intra} = -J_{intra}\sum_{l}\sum_{<i,j>}\vec{S}_{i}^{(l)}\cdot \vec{S}_{j}^{(l)}$$
+The \emph{interlayer exchange interaction} term is
+$$ H_{inter} = J_{inter}\sum_{i}\vec{S}_{i}^{(1)} \cdot \vec{S}_{i}^{(2)}$$
+The sum is taken over all lattice sites and the interaction takes place between corresponding
+spins on the same site in each layer.
+The \emph{anisotropic} term is
+$$H_{an} = k\sum_{l}\sum_{i}\left (S_{i,z}^{(l)}\right )^{2}$$
+where a negative $k$ value indicates easy axis anisotropy along the $z$ axis.
+The external field term is
+$$H_{ext} = -B\sum_{l}\sum_{i}S_{i,z}^{(l)}$$
+
+The full Hamiltonian is therefore
+$$\boxed{H = -J_{intra}\sum_{l,<i,j>}\vec{S}_{i}^{(l)}\cdot \vec{S}_{j}^{(l)} + J_{inter}\sum_{i}\vec{S}_{i}^{(1)} \cdot \vec{S}_{i}^{(2)} + k\sum_{l,i}\left (S_{i,z}^{(l)}\right )^{2} - B \sum_{l,i}S_{i,z}^{(l)}}$$
+
+\section{The Free Energy}
+The free energy is calculated using
+
+$$F = U - TS$$
+
+In the mean field approximation, we take the average of the Hamiltonian. We first make the observation
+that there is no inter-layer planar interaction, so within a given layer, we expect all spins within a layer
+to be aligned in the same direction (at low T). Therefore, the exchange interaction term is constant.
+
+$$H = -J_{intra}(2N^{2})+ J_{inter}\sum_{i}\vec{S}_{i}^{(1)} \cdot \vec{S}_{i}^{(2)} + k\sum_{l,i}\left (S_{i,z}^{(l)}\right )^{2} - B \sum_{l,i}S_{i,z}^{(l)}$$
+
+where each layer is of $N \times N$ size. Secondly, we observe that since every spin within a layer
+behaves in the same way, we can reduce the analysis to that of a single spin in each layer. So, we will
+analyze the behavior of the following simplified Hamiltonian
+
+$$
+\begin{aligned}
+   H &= J_{inter}(\vec{S}^{(1)} \cdot \vec{S}^{(2)}) + k\sum_{l}\left (S_{z}^{(l)}\right )^{2} - B \sum_{l}S_{z}^{(l)} \\
+     &= J_{inter}(\vec{S}^{(1)} \cdot \vec{S}^{(2)}) + k( (S_{z}^{(1)} )^{2} + (S_{z}^{(2)} )^{2}) - B(S_{z}^{(1)} + S_{z}^{(2)})
+\end{aligned}
+$$
+
+
+\end{document}
