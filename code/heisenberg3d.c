@@ -20,7 +20,7 @@ run plot_h3d.py
 
 #define ROWS 10       /* Number of rows in each lattice layer */
 #define COLS 10       /* Number of columns in each lattice layer */
-#define RADIUS 5    /* Radius of tangent disc in perturbing function */
+#define RADIUS .4   /* Radius of tangent disc in perturbing function */
 #define J_INTRA 1
 #define J_INTER 1
 #define INIT_T 5
@@ -59,11 +59,7 @@ void M_v_B();
 void mag_v_temp(double, double, double, int, int);
 
 
-
-
-
 int main(){
-
   int rows, cols;
   double J_intra, J_inter, B, k1, k2, init_T;
   //lattice_t lattice;
@@ -355,11 +351,12 @@ double calc_magnetization(int layer){
 }
 
 void M_v_B(){
+    // Pass into M_v_B and mag_v_temp by reference
     double results[202][4];
     int sample_counter = 0;
-    B_EXT = -5.0;
-    cool_lattice(.1);
-    while(B_EXT < 5.0){
+    B_EXT = -1.0;
+    cool_lattice(4.9);  // change to .1
+    while(B_EXT < 1.0){
         printf("B: %f\n", B_EXT);
         simulate(15000, .1);
         // Measure magnetization
@@ -372,7 +369,7 @@ void M_v_B(){
         B_EXT += .1;
     }
 
-    while(B_EXT > -5.0){
+    while(B_EXT > -1.0){
       printf("B: %f\n", B_EXT);
         simulate(15000, .1);
         // Measure magnetization
@@ -383,6 +380,7 @@ void M_v_B(){
         sample_counter += 1;
         B_EXT -= .1;
     }
+    
 }
 
 void mag_v_temp( double init_temp, double final_temp, double temp_step, int eq_time, int cor_time){
