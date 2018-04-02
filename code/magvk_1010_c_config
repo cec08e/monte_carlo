@@ -22,12 +22,12 @@ run plot_h3d.py
 #define COLS 10       /* Number of columns in each lattice layer */
 #define RADIUS .6   /* Radius of tangent disc in perturbing function */
 #define J_INTRA 1
-#define J_INTER 1    /* eventually to .1 */
+#define J_INTER 1
 #define INIT_T 5
 
 double B_EXT = 1;
-double K1 = -.5;
-double K2 = -.5;
+double K1 = -1;
+double K2 = -1;
 
 typedef struct {
   double x;
@@ -331,7 +331,7 @@ void cool_lattice(double T){
     while(curr_temp > T){
         curr_temp -= .015;
         printf("Cooling to %f \n", curr_temp);
-        simulate(10000, curr_temp);
+        simulate(20000, curr_temp);
     }
 }
 
@@ -365,7 +365,7 @@ int M_v_B(double** results){
     cool_lattice(.3);
     while(B_EXT < 5.0){
         printf("B: %f\n", B_EXT);
-        simulate(10000, .3);
+        simulate(30000, .3);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -378,7 +378,7 @@ int M_v_B(double** results){
 
     while(B_EXT > -5.0){
         printf("B: %f\n", B_EXT);
-        simulate(10000, .3);
+        simulate(30000, .3);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -395,7 +395,7 @@ int M_v_B(double** results){
 int M_v_K(double** results){
 
     int sample_counter = 0;
-    B_EXT = .6;   /* Critical Switching Field */
+    B_EXT = .75;   /* Critical Switching Field */
     double K = -5.0;
     cool_lattice(.35);
     while(K < 0){

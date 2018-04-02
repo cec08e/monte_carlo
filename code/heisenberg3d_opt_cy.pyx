@@ -177,8 +177,11 @@ cdef class Heisenberg3D(object):
             ##### End delta_E calculation ######
 
 
-
-            if not ((delta_E > 0) and (rand() >= exp(-(1.0/T)*delta_E))):
+            print("delta_E: ", delta_E)
+            rn = rand()
+            print("rn: ", rn)
+            print("exponential: ", exp(-(1.0/T)*delta_E))
+            if not ((delta_E > 0) and (rn >= exp(-(1.0/T)*delta_E))):
                 #accept_flag = False
                 num_accept += 1
                 self.lattice[chosen_site_lay][chosen_site_row][chosen_site_col] = temp_spin

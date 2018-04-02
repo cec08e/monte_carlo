@@ -22,12 +22,12 @@ run plot_h3d.py
 #define COLS 10       /* Number of columns in each lattice layer */
 #define RADIUS .6   /* Radius of tangent disc in perturbing function */
 #define J_INTRA 1
-#define J_INTER 1    /* eventually to .1 */
+#define J_INTER 1
 #define INIT_T 5
 
 double B_EXT = 1;
-double K1 = -.5;
-double K2 = -.5;
+double K1 = -1;
+double K2 = -1;
 
 typedef struct {
   double x;
@@ -56,7 +56,6 @@ void perturb_spin(spin_t* , spin_t*);
 double calc_delta_E( spin_t* , spin_t*, int, int, int);
 double calc_magnetization( int);
 int M_v_B(double**);
-int M_v_K(double**);
 void mag_v_temp(double, double, double, int, int);
 
 
@@ -331,7 +330,7 @@ void cool_lattice(double T){
     while(curr_temp > T){
         curr_temp -= .015;
         printf("Cooling to %f \n", curr_temp);
-        simulate(10000, curr_temp);
+        simulate(20000, curr_temp);
     }
 }
 
@@ -362,10 +361,10 @@ int M_v_B(double** results){
 
     int sample_counter = 0;
     B_EXT = -5.0;
-    cool_lattice(.3);
+    cool_lattice(.5);
     while(B_EXT < 5.0){
         printf("B: %f\n", B_EXT);
-        simulate(10000, .3);
+        simulate(30000, .5);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -378,7 +377,7 @@ int M_v_B(double** results){
 
     while(B_EXT > -5.0){
         printf("B: %f\n", B_EXT);
-        simulate(10000, .3);
+        simulate(30000, .5);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -386,45 +385,6 @@ int M_v_B(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         sample_counter += 1;
         B_EXT -= .1;
-    }
-
-    return sample_counter;
-
-}
-
-int M_v_K(double** results){
-
-    int sample_counter = 0;
-    B_EXT = .6;   /* Critical Switching Field */
-    double K = -5.0;
-    cool_lattice(.35);
-    while(K < 0){
-        K1 = K;
-        K2 = K;
-        printf("K: %f\n", K);
-        simulate(30000, .35);
-        // Measure magnetization
-        results[sample_counter][0] = K;
-        results[sample_counter][1] = calc_magnetization( -1);
-        results[sample_counter][2] = calc_magnetization( 0);
-        results[sample_counter][3] = calc_magnetization( 1);
-        sample_counter += 1;
-
-        K += .1;
-    }
-
-    while(K > -5.0){
-        K1 = K;
-        K2 = K;
-        printf("K: %f\n", K);
-        simulate(30000, .35);
-        // Measure magnetization
-        results[sample_counter][0] = K;
-        results[sample_counter][1] = calc_magnetization( -1);
-        results[sample_counter][2] = calc_magnetization( 0);
-        results[sample_counter][3] = calc_magnetization( 1);
-        sample_counter += 1;
-        K-= .1;
     }
 
     return sample_counter;
