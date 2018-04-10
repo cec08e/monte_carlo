@@ -30,9 +30,9 @@ run plot_h3d.py
 //
 
 
-double B_EXT = .75;
-double K1 = -3.0;
-double K2 = -3.0;
+double B_EXT = .6;
+double K1 = -.1;
+double K2 = -.1;
 int EQ_TIME = 5000;
 int COR_TIME = 5000;
 
@@ -404,12 +404,12 @@ int M_v_K(double** results){
     int sample_counter = 0;
     //B_EXT = .6;   /* Critical Switching Field */
     double K = -3.0;
-    cool_lattice(.1);
+    cool_lattice(.2);
     while(K < 0){
         K1 = K;
         K2 = K;
         printf("K: %f\n", K);
-        simulate(10000, .1);
+        simulate(5000, .2);
         // Measure magnetization
         results[sample_counter][0] = K;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -424,7 +424,7 @@ int M_v_K(double** results){
         K1 = K;
         K2 = K;
         printf("K: %f\n", K);
-        simulate(10000, .1);
+        simulate(5000, .2);
         // Measure magnetization
         results[sample_counter][0] = K;
         results[sample_counter][1] = calc_magnetization( -1);
