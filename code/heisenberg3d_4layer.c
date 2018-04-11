@@ -16,13 +16,22 @@ ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 
 sudo gdb python3
 run plot_h3d.py
+
+************ 4 LAYER VERSION *****************
 */
 
 #define ROWS 10       /* Number of rows in each lattice layer */
 #define COLS 10       /* Number of columns in each lattice layer */
 #define RADIUS .6   /* Radius of tangent disc in perturbing function */
 #define J_INTRA 1
-#define J_INTER .1  /* eventually to .1 */
+/*
+#define J_INTER_12 .1
+#define J_INTER_23 .1
+#define J_INTER_34 .1
+*/
+int J_INTER[3] = {.1, .1, .1};
+
+
 #define INIT_T 5
 
 // Play around with inter, k , etc...- keep intra at 1
@@ -31,8 +40,13 @@ run plot_h3d.py
 
 
 double B_EXT = .05;
-double K1 = -2;
-double K2 = -2;
+/*
+double K1 = -1;
+double K2 = -1;
+double K3 = -1;
+double K4 = -1;
+*/
+double K[4] = {-1, -1, -1, -1};
 int EQ_TIME = 5000;
 int COR_TIME = 5000;
 
@@ -49,7 +63,7 @@ typedef struct {
 } lattice_t;
 */
 
-typedef spin_t lattice_t[2][ROWS][COLS];
+typedef spin_t lattice_t[4][ROWS][COLS];
 
 gsl_rng * rng;
 lattice_t lattice;
@@ -69,7 +83,7 @@ int M_v_T(double**, double, double, double);
 
 int main(){
   int rows, cols;
-  double J_intra, J_inter, B, k1, k2, init_T;
+  //double J_intra, J_inter, B, k1, k2, init_T;
   //lattice_t lattice;
 
   //rng = gsl_rng_alloc(gsl_rng_mt19937);
@@ -96,6 +110,8 @@ void initialize_lattice(){
     for(j = 0; j < COLS; j++){
       gen_random_spin(&lattice[0][i][j]);
       gen_random_spin(&lattice[1][i][j]);
+      gen_random_spin(&lattice[2][i][j]);
+      gen_random_spin(&lattice[3][i][j]);
     }
   }
 }
@@ -134,7 +150,7 @@ void simulate(int num_sweeps, double T){
   for(i = 0; i < num_sweeps; i++){
     num_accept += sweep(T);
   }
-  printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*2.0));
+  printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*4.0));
 }
 
 int sweep(double T){
@@ -146,10 +162,10 @@ int sweep(double T){
 
 
   /* Perform as many MC steps as there are lattice sites */
-  for(i=0; i < 2*ROWS*COLS; i++){
+  for(i=0; i < 4*ROWS*COLS; i++){
 
     /* Choose a random spin site on a random lattice */
-    layer = gsl_rng_uniform_int(rng,2);
+    layer = gsl_rng_uniform_int(rng,4);
     row = gsl_rng_get(rng) % ROWS;
     col = gsl_rng_get(rng) % COLS;
 
@@ -293,25 +309,19 @@ double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col
 
   gsl_vector* inter_vector = gsl_vector_alloc(3);
   //printf("Jinter dot with layer %d \n", (layer+1)%2);
-  gsl_vector_set(inter_vector, 0, lattice[(layer+1)%2][row][col].x);
-  gsl_vector_set(inter_vector, 1, lattice[(layer+1)%2][row][col].y);
-  gsl_vector_set(inter_vector, 2, lattice[(layer+1)%2][row][col].z);
+
+  //// ADD INTER LAYER calc changes
+
+  gsl_vector_set(inter_vector, 0, lattice[(layer+1)%4][row][col].x + lattice[(((layer-1)%4)+4)%4][row][col].x);
+  gsl_vector_set(inter_vector, 1, lattice[(layer+1)%4][row][col].y + lattice[(((layer-1)%4)+4)%4][row][col].y);
+  gsl_vector_set(inter_vector, 2, lattice[(layer+1)%4][row][col].z + lattice[(((layer-1)%4)+4)%4][row][col].z);
 
   gsl_blas_ddot(delta_vector, inter_vector, &delta_dot_inter);
 
 
   /* Calculate anisotropy change */
-  /*
-  if(layer == 0)
-    delta_a = K1*(gsl_pow_2(gsl_vector_get(delta_vector,2)) + 2*gsl_vector_get(delta_vector,2)*spin->z);
-  else
-    delta_a = K2*(gsl_pow_2(gsl_vector_get(delta_vector,2)) + 2*gsl_vector_get(delta_vector,2)*spin->z
-  */
+  delta_a = K[layer]*(gsl_pow_2(temp_spin->z) - gsl_pow_2(spin->z));
 
-  if(layer == 0)
-    delta_a = K1*(gsl_pow_2(temp_spin->z) - gsl_pow_2(spin->z));
-  else
-    delta_a = K2*(gsl_pow_2(temp_spin->z) - gsl_pow_2(spin->z));
   /*
   for (i = 0; i < 3; i++){
     printf ("neighbor_vector_%d = %g\n", i, gsl_vector_get (neighbor_vector, i));
@@ -348,7 +358,7 @@ double calc_magnetization(int layer){
       mag = 0.0;
       mag_spin = 0.0;
       if(layer == -1){
-        for(i=0; i < 2; i++)
+        for(i=0; i < 4; i++)
             for(j=0; j < ROWS; j++)
                 for(k = 0; k < COLS; k++)
                     mag += lattice[i][j][k].z;
@@ -378,6 +388,8 @@ int M_v_B(double** results){
         results[sample_counter][1] = calc_magnetization( -1);
         results[sample_counter][2] = calc_magnetization( 0);
         results[sample_counter][3] = calc_magnetization( 1);
+        results[sample_counter][4] = calc_magnetization( 2);
+        results[sample_counter][5] = calc_magnetization( 3);
         sample_counter += 1;
 
         B_EXT += .01;
@@ -391,6 +403,8 @@ int M_v_B(double** results){
         results[sample_counter][1] = calc_magnetization( -1);
         results[sample_counter][2] = calc_magnetization( 0);
         results[sample_counter][3] = calc_magnetization( 1);
+        results[sample_counter][4] = calc_magnetization( 2);
+        results[sample_counter][5] = calc_magnetization( 3);
         sample_counter += 1;
         B_EXT -= .01;
     }
@@ -403,35 +417,43 @@ int M_v_K(double** results){
 
     int sample_counter = 0;
     //B_EXT = .6;   /* Critical Switching Field */
-    double K = -2.0;
-    cool_lattice(.15);
+    double K = -1.0;
+    cool_lattice(.1);
     while(K < 0){
-        K1 = K;
-        K2 = K;
+        K[0] = K;
+        K[1] = K;
+        K[2] = K;
+        K[3] = K;
         printf("K: %f\n", K);
-        simulate(10000, .15);
+        simulate(10000, .1);
         // Measure magnetization
         results[sample_counter][0] = K;
         results[sample_counter][1] = calc_magnetization( -1);
         results[sample_counter][2] = calc_magnetization( 0);
         results[sample_counter][3] = calc_magnetization( 1);
+        results[sample_counter][4] = calc_magnetization( 2);
+        results[sample_counter][5] = calc_magnetization( 3);
         sample_counter += 1;
 
-        K += .01;
+        K += .005;
     }
 
-    while(K > -2.0){
-        K1 = K;
-        K2 = K;
+    while(K > -1.0){
+        K[0] = K;
+        K[1] = K;
+        K[2] = K;
+        K[3] = K;
         printf("K: %f\n", K);
-        simulate(10000, .15);
+        simulate(10000, .1);
         // Measure magnetization
         results[sample_counter][0] = K;
         results[sample_counter][1] = calc_magnetization( -1);
         results[sample_counter][2] = calc_magnetization( 0);
         results[sample_counter][3] = calc_magnetization( 1);
+        results[sample_counter][4] = calc_magnetization( 2);
+        results[sample_counter][5] = calc_magnetization( 3);
         sample_counter += 1;
-        K-= .01;
+        K-= .005;
     }
 
     return sample_counter;

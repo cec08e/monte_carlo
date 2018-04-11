@@ -100,6 +100,8 @@ def plot_M_v_B(max_samples = 500):
     plt.subplot(311)   # Magnetization per spin, both lattices
     plt.plot(B_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], 'r')
     plt.plot(B_vals[int(num_samples/2):], M_vals[int(num_samples/2):], 'b')
+    plt.ylim(-1.0, 1.0)
+
 
 
     plt.ylabel("M")
@@ -108,6 +110,8 @@ def plot_M_v_B(max_samples = 500):
     plt.subplot(312)   # Magnetization per spin, first lattice
     plt.plot(B_vals[0:int(num_samples/2)], M1_vals[0:int(num_samples/2)], 'r')
     plt.plot(B_vals[int(num_samples/2):], M1_vals[int(num_samples/2):], 'b')
+    plt.ylim(-1.0, 1.0)
+
 
     plt.ylabel("$M_{1}$")
     plt.xlabel("B")
@@ -115,9 +119,11 @@ def plot_M_v_B(max_samples = 500):
     plt.subplot(313)   # Magnetization per spin, second lattice
     plt.plot(B_vals[0:int(num_samples/2)], M2_vals[0:int(num_samples/2)], 'r')
     plt.plot(B_vals[int(num_samples/2):], M2_vals[int(num_samples/2):], 'b')
+    plt.ylim(-1.0, 1.0)
+
 
     plt.ylabel("$M_{2}$")
-    plt.xlabel("B (J_inter = .1, K = .1)")
+    plt.xlabel("B (J_inter = .1, K = 0)")
 
     plt.show()
 
@@ -151,6 +157,7 @@ def plot_M_v_K(max_samples = 500):
     plt.subplot(311)   # Magnetization per spin, both lattices
     plt.plot(K_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], 'r')
     plt.plot(K_vals[int(num_samples/2):], M_vals[int(num_samples/2):], 'b')
+    plt.ylim(-1.0, 1.0)
 
 
     plt.ylabel("M")
@@ -159,6 +166,8 @@ def plot_M_v_K(max_samples = 500):
     plt.subplot(312)   # Magnetization per spin, first lattice
     plt.plot(K_vals[0:int(num_samples/2)], M1_vals[0:int(num_samples/2)], 'r')
     plt.plot(K_vals[int(num_samples/2):], M1_vals[int(num_samples/2):], 'b')
+    plt.ylim(-1.0, 1.0)
+
 
     plt.ylabel("$M_{1}$")
     plt.xlabel("K")
@@ -166,9 +175,11 @@ def plot_M_v_K(max_samples = 500):
     plt.subplot(313)   # Magnetization per spin, second lattice
     plt.plot(K_vals[0:int(num_samples/2)], M2_vals[0:int(num_samples/2)], 'r')
     plt.plot(K_vals[int(num_samples/2):], M2_vals[int(num_samples/2):], 'b')
+    plt.ylim(-1.0, 1.0)
+
 
     plt.ylabel("$M_{2}$")
-    plt.xlabel("K ($J_inter = .1, B = .75$)")
+    plt.xlabel("K ($J_inter = .1, B = .05$)")
 
     plt.show()
 
