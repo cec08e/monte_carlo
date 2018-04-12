@@ -18,8 +18,8 @@ sudo gdb python3
 run plot_h3d.py
 */
 
-#define ROWS 10       /* Number of rows in each lattice layer */
-#define COLS 10       /* Number of columns in each lattice layer */
+#define ROWS 30       /* Number of rows in each lattice layer */
+#define COLS 30       /* Number of columns in each lattice layer */
 #define RADIUS .6   /* Radius of tangent disc in perturbing function */
 #define J_INTRA 1
 #define J_INTER .1  /* eventually to .1 */
@@ -31,8 +31,8 @@ run plot_h3d.py
 
 
 double B_EXT = .05;
-double K1 = -1;
-double K2 = -1;
+double K1 = 0;
+double K2 = 0;
 int EQ_TIME = 5000;
 int COR_TIME = 5000;
 
@@ -336,7 +336,7 @@ void cool_lattice(double T){
     float curr_temp;
     curr_temp = INIT_T;
     while(curr_temp > T){
-        curr_temp -= .035;
+        curr_temp -= .02;
         printf("Cooling to %f \n", curr_temp);
         simulate(2000, curr_temp);
     }
@@ -369,10 +369,10 @@ int M_v_B(double** results){
 
     int sample_counter = 0;
     B_EXT = -1.0;
-    cool_lattice(.15);
+    cool_lattice(.1);
     while(B_EXT < 1.0){
         printf("B: %f\n", B_EXT);
-        simulate(10000, .15);
+        simulate(1000, .1);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -385,7 +385,7 @@ int M_v_B(double** results){
 
     while(B_EXT > -1.0){
         printf("B: %f\n", B_EXT);
-        simulate(10000, .15);
+        simulate(1000, .1);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -417,7 +417,7 @@ int M_v_K(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         sample_counter += 1;
 
-        K += .005;
+        K += .01;
     }
 
     while(K > -1.0){
@@ -431,7 +431,7 @@ int M_v_K(double** results){
         results[sample_counter][2] = calc_magnetization( 0);
         results[sample_counter][3] = calc_magnetization( 1);
         sample_counter += 1;
-        K-= .005;
+        K-= .01;
     }
 
     return sample_counter;
