@@ -26,7 +26,7 @@ ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 
 double J_INTER[4] = {.1, .1, .1, 0};      /* Inter-layer interaction strength between each pair of layers */
 double B_EXT = -5;                           /* External field strength */
-double K[4] = {-.1, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+double K[4] = {-.05, -.05, -.05, -.05};      /* Anistropic strength, per layer */
 
 int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
 int COR_TIME = 5000;                         /* Number of correlation sweeps */
