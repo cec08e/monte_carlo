@@ -31,8 +31,8 @@ run plot_h3d.py
 
 
 double B_EXT = .05;
-double K1 = 0;
-double K2 = 0;
+double K1 = -1.0;
+double K2 = -1.0;
 int EQ_TIME = 5000;
 int COR_TIME = 5000;
 
@@ -368,11 +368,11 @@ double calc_magnetization(int layer){
 int M_v_B(double** results){
 
     int sample_counter = 0;
-    B_EXT = -1.0;
-    cool_lattice(.1);
-    while(B_EXT < 1.0){
+    B_EXT = -0.5;
+    cool_lattice(.15);
+    while(B_EXT < .5){
         printf("B: %f\n", B_EXT);
-        simulate(1000, .1);
+        simulate(5000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -383,9 +383,9 @@ int M_v_B(double** results){
         B_EXT += .01;
     }
 
-    while(B_EXT > -1.0){
+    while(B_EXT > -0.5){
         printf("B: %f\n", B_EXT);
-        simulate(1000, .1);
+        simulate(5000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -404,12 +404,12 @@ int M_v_K(double** results){
     int sample_counter = 0;
     //B_EXT = .6;   /* Critical Switching Field */
     double K = -1.0;
-    cool_lattice(.1);
+    cool_lattice(.15);
     while(K < 0){
         K1 = K;
         K2 = K;
         printf("K: %f\n", K);
-        simulate(10000, .1);
+        simulate(10000, .15);
         // Measure magnetization
         results[sample_counter][0] = K;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -424,7 +424,7 @@ int M_v_K(double** results){
         K1 = K;
         K2 = K;
         printf("K: %f\n", K);
-        simulate(10000, .1);
+        simulate(10000, .15);
         // Measure magnetization
         results[sample_counter][0] = K;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -441,6 +441,7 @@ int M_v_K(double** results){
 /*******************************************************************************/
 //   The M_v_T function generates a series of magnetization
 //   measurements for a series of time steps.
+// UPDATE for 
 /*******************************************************************************/
 
 int M_v_T(double** results, double init_temp, double final_temp, double temp_step){

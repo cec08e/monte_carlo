@@ -14,22 +14,46 @@ Requirements: GNU Scientific Library (gsl) and CBLAS
 gcc -lgsl -lgslcblas heisenberg3d.c
 ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 
-************ 4 LAYER VERSION *****************
+sudo gdb python3
+run plot_h3d.py
+
+************ 5 LAYER VERSION *****************
 */
 
 #define ROWS 10       /* Number of rows in each lattice layer */
 #define COLS 10       /* Number of columns in each lattice layer */
-#define RADIUS .6     /* Radius of tangent disc in perturbing function */
-#define J_INTRA 1     /* Intra-layer interaction strength */
-#define INIT_T 5      /* Initial temperature */
+#define RADIUS .6   /* Radius of tangent disc in perturbing function */
+#define J_INTRA 1
+/*
+#define J_INTER_12 .1
+#define J_INTER_23 .1
+#define J_INTER_34 .1
+*/
+double J_INTER[4] = {.1, .1, .1, .1, 0};
+
+// Same K on all layers - try .2
+// Down to small interlayer
+// Same configuration sweeping up and back
+// 5 layers
 
 
-double J_INTER[4] = {.1, .1, .1, 0};      /* Inter-layer interaction strength between each pair of layers */
-double B_EXT = -5;                           /* External field strength */
-double K[4] = {-.1, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+#define INIT_T 5
 
-int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
-int COR_TIME = 5000;                         /* Number of correlation sweeps */
+// Play around with inter, k , etc...- keep intra at 1
+// Plot neel mag vs temp to find neel temp
+//
+
+
+double B_EXT = -5;
+/*
+double K1 = -1;
+double K2 = -1;
+double K3 = -1;
+double K4 = -1;
+*/
+double K[4] = {-.2, -.2, -.2, -.2, -.2};
+int EQ_TIME = 5000;
+int COR_TIME = 5000;
 
 typedef struct {
   double x;
@@ -37,7 +61,14 @@ typedef struct {
   double z;
 } spin_t;             /* Spin type structure - x, y, and z components of spin */
 
-typedef spin_t lattice_t[4][ROWS][COLS];
+/*
+typedef struct {
+  spin_t layer1[ROWS][COLS];
+  spin_t layer2[ROWS][COLS];
+} lattice_t;
+*/
+
+typedef spin_t lattice_t[5][ROWS][COLS];
 
 gsl_rng * rng;
 lattice_t lattice;
@@ -57,14 +88,21 @@ int M_v_T(double**, double, double, double);
 
 int main(){
   int rows, cols;
+  //double J_intra, J_inter, B, k1, k2, init_T;
+  //lattice_t lattice;
+
+  //rng = gsl_rng_alloc(gsl_rng_mt19937);
+  //gsl_rng_set (rng, 0);
 
   clock_t begin = clock();
 
   initialize_lattice();
+  //M_v_B();
+  //mag_v_temp(lattice, 5.0, .01, .05, 10000, 5000);
 
   clock_t end = clock();
   double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Execution time: %f \n", time_spent);
+  //printf("Execution time: %f \n", time_spent);
 
 }
 
@@ -72,13 +110,15 @@ void initialize_lattice(){
   int i, j, k;
 
   rng = gsl_rng_alloc(gsl_rng_mt19937);
-  gsl_rng_set (rng, time(NULL));
+  gsl_rng_set (rng, 0);
   for(i = 0; i < ROWS; i++){
     for(j = 0; j < COLS; j++){
       gen_random_spin(&lattice[0][i][j]);
       gen_random_spin(&lattice[1][i][j]);
       gen_random_spin(&lattice[2][i][j]);
       gen_random_spin(&lattice[3][i][j]);
+      gen_random_spin(&lattice[4][i][j]);
+
     }
   }
 }
@@ -101,6 +141,15 @@ void gen_random_spin(spin_t* spin){
     spin->y = 2.0*x2*sqrt(1.0-mag_sq);
     spin->z = 1.0-2.0*mag_sq;
 
+    /*
+    printf("x: %f\n", spin->x);
+    printf("y: %f\n", spin->y);
+    printf("z: %f\n", spin->z);
+    printf("Magnitude: %f\n\n", sqrt(gsl_pow_2(spin->x)
+                + gsl_pow_2(spin->y)
+                + gsl_pow_2(spin->z)));
+    */
+
 }
 
 void simulate(int num_sweeps, double T){
@@ -108,7 +157,7 @@ void simulate(int num_sweeps, double T){
   for(i = 0; i < num_sweeps; i++){
     num_accept += sweep(T);
   }
-  printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*4.0));
+  printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*5.0));
 }
 
 int sweep(double T){
@@ -120,10 +169,10 @@ int sweep(double T){
 
 
   /* Perform as many MC steps as there are lattice sites */
-  for(i=0; i < 4*ROWS*COLS; i++){
+  for(i=0; i < 5*ROWS*COLS; i++){
 
     /* Choose a random spin site on a random lattice */
-    layer = gsl_rng_uniform_int(rng,4);
+    layer = gsl_rng_uniform_int(rng,5);
     row = gsl_rng_get(rng) % ROWS;
     col = gsl_rng_get(rng) % COLS;
 
@@ -318,7 +367,7 @@ double calc_magnetization(int layer){
       mag = 0.0;
       mag_spin = 0.0;
       if(layer == -1){
-        for(i=0; i < 4; i++)
+        for(i=0; i < 5; i++)
             for(j=0; j < ROWS; j++)
                 for(k = 0; k < COLS; k++)
                     mag += lattice[i][j][k].z;
@@ -338,11 +387,11 @@ double calc_magnetization(int layer){
 int M_v_B(double** results){
 
     int sample_counter = 0;
-    B_EXT = -.4;
+    B_EXT = -.7;
     cool_lattice(.15);
-    while(B_EXT < .4){
+    while(B_EXT < .7){
         printf("B: %f\n", B_EXT);
-        simulate(5000, .15);
+        simulate(10000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -350,14 +399,16 @@ int M_v_B(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+        results[sample_counter][6] = calc_magnetization( 4);
+
         sample_counter += 1;
 
         B_EXT += .003;
     }
 
-    while(B_EXT > -.4){
+    while(B_EXT > -.7){
         printf("B: %f\n", B_EXT);
-        simulate(5000, .15);
+        simulate(10000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -365,6 +416,8 @@ int M_v_B(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+        results[sample_counter][6] = calc_magnetization( 4);
+
         sample_counter += 1;
         B_EXT -= .003;
     }
@@ -393,6 +446,8 @@ int M_v_K(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+        results[sample_counter][6] = calc_magnetization( 4);
+
         sample_counter += 1;
 
         K_val += .005;
@@ -412,6 +467,8 @@ int M_v_K(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+        results[sample_counter][6] = calc_magnetization( 4);
+
         sample_counter += 1;
         K_val -= .005;
     }
@@ -423,7 +480,7 @@ int M_v_K(double** results){
 /*******************************************************************************/
 //   The M_v_T function generates a series of magnetization
 //   measurements for a series of time steps.
-// UPDATE for 4 Layer
+// UPDATE for 5 Layer
 /*******************************************************************************/
 
 int M_v_T(double** results, double init_temp, double final_temp, double temp_step){
