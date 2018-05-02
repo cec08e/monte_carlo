@@ -123,7 +123,14 @@ int sweep(double T){
   for(i=0; i < 4*ROWS*COLS; i++){
 
     /* Choose a random spin site on a random lattice */
-    layer = gsl_rng_uniform_int(rng,4);
+    //layer = gsl_rng_uniform_int(rng,4);
+    layer = gsl_rng_get(rng) % 4;   /******************************************************/
+    /*if(layer == 2){
+      layer = 1;
+    }
+    else if(layer == 1){
+      layer = 2;
+    }*/
     row = gsl_rng_get(rng) % ROWS;
     col = gsl_rng_get(rng) % COLS;
 
@@ -270,6 +277,10 @@ double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col
 
   //// ADD INTER LAYER calc changes
 
+  //printf("Layer: %d \n", layer);
+  //printf("Top Layer: %d\n", (layer+1)%4);
+  //printf("Bottom Layer: %d\n", (((layer-1)%4)+4)%4);
+
   gsl_vector_set(inter_vector, 0, J_INTER[layer]*lattice[(layer+1)%4][row][col].x + J_INTER[(((layer-1)%4)+4)%4]*lattice[(((layer-1)%4)+4)%4][row][col].x);
   gsl_vector_set(inter_vector, 1, J_INTER[layer]*lattice[(layer+1)%4][row][col].y + J_INTER[(((layer-1)%4)+4)%4]*lattice[(((layer-1)%4)+4)%4][row][col].y);
   gsl_vector_set(inter_vector, 2, J_INTER[layer]*lattice[(layer+1)%4][row][col].z + J_INTER[(((layer-1)%4)+4)%4]*lattice[(((layer-1)%4)+4)%4][row][col].z);
@@ -338,11 +349,11 @@ double calc_magnetization(int layer){
 int M_v_B(double** results){
 
     int sample_counter = 0;
-    B_EXT = -.4;
+    B_EXT = -.2;
     cool_lattice(.15);
-    while(B_EXT < .4){
+    while(B_EXT < .2){
         printf("B: %f\n", B_EXT);
-        simulate(5000, .15);
+        simulate(8000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -355,9 +366,9 @@ int M_v_B(double** results){
         B_EXT += .003;
     }
 
-    while(B_EXT > -.4){
+    while(B_EXT > -.2){
         printf("B: %f\n", B_EXT);
-        simulate(5000, .15);
+        simulate(8000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);

@@ -187,4 +187,4 @@ if __name__ == "__main__":
     #mag_v_temp(5, .1, 10000, 5000)
     #plot_M_v_T(5, .1, .1)
     #plot_M_v_B()
-    plot_M_v_K()
+    #plot_M_v_K()
