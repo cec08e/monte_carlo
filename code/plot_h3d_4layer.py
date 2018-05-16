@@ -34,6 +34,7 @@ Todo:
     * Add command line flags to call module functions.
 
 """
+SIM_NUM = 4
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)
@@ -189,7 +190,9 @@ def plot_M_v_B(max_samples = 5000):
 
 
     plt.ylabel("$M_{4}$")
-    plt.xlabel("B (J_inter = {.1,.1,.1,0}, K = {.05,.05,.05,.05})")
+    plt.xlabel("B (J_inter = {.1,.1,.1,0}, K = {.1,.05,.05,.05})")
+
+    plt.savefig("sim_results/sim_"+str(SIM_NUM)+".png")
 
     plt.show()
 

@@ -17,16 +17,19 @@ ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 ************ 4 LAYER VERSION *****************
 */
 
-#define ROWS 10       /* Number of rows in each lattice layer */
-#define COLS 10       /* Number of columns in each lattice layer */
+#define ROWS 40       /* Number of rows in each lattice layer */
+#define COLS 40       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
-#define J_INTRA 1     /* Intra-layer interaction strength */
+#define J_INTRA 1.0     /* Intra-layer interaction strength */
 #define INIT_T 5      /* Initial temperature */
+#define SIM_NUM 4    /* Simulation number */
+#define SIM_CONFIG "sim_configs/sim_config.txt"    /* Simulation config file name */
 
 
 double J_INTER[4] = {.1, .1, .1, 0};      /* Inter-layer interaction strength between each pair of layers */
 double B_EXT = -5;                           /* External field strength */
-double K[4] = {-.05, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+double K[4] = {-.1, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+
 
 int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
 int COR_TIME = 5000;                         /* Number of correlation sweeps */
@@ -319,7 +322,7 @@ void cool_lattice(double T){
     while(curr_temp > T){
         curr_temp -= .035;
         printf("Cooling to %f \n", curr_temp);
-        simulate(2000, curr_temp);
+        simulate(1000, curr_temp);
     }
 }
 
@@ -348,12 +351,19 @@ double calc_magnetization(int layer){
 
 int M_v_B(double** results){
 
+    clock_t begin = clock();
+
+    FILE *f = fopen(SIM_CONFIG, "a");
+    fprintf(f, "Simulation %d: Size = %d, J_inter = {%f,%f,%f,%f}, K = {%f,%f,%f,%f}, J_intra = %f\n", SIM_NUM, ROWS, J_INTER[0], J_INTER[1],
+    J_INTER[2], J_INTER[3], K[0], K[1], K[2], K[3], J_INTRA);
+    fclose(f);
+
     int sample_counter = 0;
     B_EXT = -.2;
     cool_lattice(.15);
     while(B_EXT < .2){
         printf("B: %f\n", B_EXT);
-        simulate(8000, .15);
+        simulate(1000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -368,7 +378,7 @@ int M_v_B(double** results){
 
     while(B_EXT > -.2){
         printf("B: %f\n", B_EXT);
-        simulate(8000, .15);
+        simulate(1000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -379,6 +389,10 @@ int M_v_B(double** results){
         sample_counter += 1;
         B_EXT -= .003;
     }
+
+    clock_t end = clock();
+    double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("Execution time: %f \n", time_spent);
 
     return sample_counter;
 
