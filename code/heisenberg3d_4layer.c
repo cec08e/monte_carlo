@@ -22,13 +22,13 @@ ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
 #define J_INTRA 1.0     /* Intra-layer interaction strength */
 #define INIT_T 5      /* Initial temperature */
-#define SIM_NUM 4    /* Simulation number */
+#define SIM_NUM 20    /* Simulation number */
 #define SIM_CONFIG "sim_configs/sim_config.txt"    /* Simulation config file name */
 
 
-double J_INTER[4] = {.1, .1, .1, 0};      /* Inter-layer interaction strength between each pair of layers */
+double J_INTER[4] = {.05, .05, .05, 0};      /* Inter-layer interaction strength between each pair of layers */
 double B_EXT = -5;                           /* External field strength */
-double K[4] = {-.1, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+double K[4] = {-.06, -.05, -.05, -.05};      /* Anistropic strength, per layer */
 
 
 int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
