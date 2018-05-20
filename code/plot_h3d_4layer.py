@@ -3,6 +3,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 from matplotlib import colors
 import ctypes
+import pickle
 
 """plot_h3d_4layer.py
 
@@ -34,7 +35,7 @@ Todo:
     * Add command line flags to call module functions.
 
 """
-SIM_NUM = 20
+SIM_NUM = 68
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)
@@ -154,7 +155,8 @@ def plot_M_v_B(max_samples = 5000):
     plt.ylim(-1.0, 1.0)
 
     plt.ylabel("M")
-    plt.xlabel("B")
+    #plt.xlabel("B")
+    plt.xticks([])
 
     plt.subplot(512)   # Magnetization per spin, first lattice
     plt.plot(B_vals[0:int(num_samples/2)], M1_vals[0:int(num_samples/2)], 'r')
@@ -163,7 +165,8 @@ def plot_M_v_B(max_samples = 5000):
 
 
     plt.ylabel("$M_{1}$")
-    plt.xlabel("B")
+    plt.xticks([])
+    #plt.xlabel("B")
 
     plt.subplot(513)   # Magnetization per spin, second lattice
     plt.plot(B_vals[0:int(num_samples/2)], M2_vals[0:int(num_samples/2)], 'r')
@@ -172,7 +175,9 @@ def plot_M_v_B(max_samples = 5000):
 
 
     plt.ylabel("$M_{2}$")
-    plt.xlabel("B")
+    plt.xticks([])
+
+    #plt.xlabel("B")
 
     plt.subplot(514)   # Magnetization per spin, third lattice
     plt.plot(B_vals[0:int(num_samples/2)], M3_vals[0:int(num_samples/2)], 'r')
@@ -181,7 +186,9 @@ def plot_M_v_B(max_samples = 5000):
 
 
     plt.ylabel("$M_{3}$")
-    plt.xlabel("B")
+    #plt.xlabel("B")
+    plt.xticks([])
+
 
     plt.subplot(515)   # Magnetization per spin, fourth lattice
     plt.plot(B_vals[0:int(num_samples/2)], M4_vals[0:int(num_samples/2)], 'r')
@@ -190,9 +197,11 @@ def plot_M_v_B(max_samples = 5000):
 
 
     plt.ylabel("$M_{4}$")
-    plt.xlabel("B (J_inter = {.05,.05,.05,0}, K = {.06,.05,.05,.05}, J_intra = 1)")
-
+    plt.xlabel("B (J_inter = {.05,.05,.05,0}, K = {.1,.05,.05,.05}, J_intra = {1.0,1.0,1.0,1.0})")
+    #plt.xlabel("$H$ ($J_{FM} = 1.0$, $J_{AFM} = .05$, $K_{1} = .06$, $K_{234} = .05$)")
     plt.savefig("sim_results/sim_"+str(SIM_NUM)+".png")
+    with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:
+        pickle.dump([B_vals, M_vals, M1_vals, M2_vals, M3_vals, M4_vals], fp)
 
     plt.show()
 
@@ -241,52 +250,63 @@ def plot_M_v_K(max_samples = 5000):
         M4_vals.append(results[i][5])
 
 
-    plt.subplot(311)   # Magnetization per spin, all lattices
+
+    plt.subplot(511)   # Magnetization per spin, all lattices
     plt.plot(K_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], 'r')
     plt.plot(K_vals[int(num_samples/2):], M_vals[int(num_samples/2):], 'b')
     plt.ylim(-1.0, 1.0)
 
-
     plt.ylabel("M")
-    plt.xlabel("K")
+    #plt.xlabel("B")
+    plt.xticks([])
 
-    plt.subplot(312)   # Magnetization per spin, first lattice
+    plt.subplot(512)   # Magnetization per spin, first lattice
     plt.plot(K_vals[0:int(num_samples/2)], M1_vals[0:int(num_samples/2)], 'r')
     plt.plot(K_vals[int(num_samples/2):], M1_vals[int(num_samples/2):], 'b')
     plt.ylim(-1.0, 1.0)
 
 
     plt.ylabel("$M_{1}$")
-    plt.xlabel("K")
+    plt.xticks([])
+    #plt.xlabel("B")
 
-    plt.subplot(313)   # Magnetization per spin, second lattice
+    plt.subplot(513)   # Magnetization per spin, second lattice
     plt.plot(K_vals[0:int(num_samples/2)], M2_vals[0:int(num_samples/2)], 'r')
     plt.plot(K_vals[int(num_samples/2):], M2_vals[int(num_samples/2):], 'b')
     plt.ylim(-1.0, 1.0)
 
 
     plt.ylabel("$M_{2}$")
-    plt.xlabel("K")
+    plt.xticks([])
+
+    #plt.xlabel("B")
 
     plt.subplot(514)   # Magnetization per spin, third lattice
-    plt.plot(B_vals[0:int(num_samples/2)], M3_vals[0:int(num_samples/2)], 'r')
-    plt.plot(B_vals[int(num_samples/2):], M3_vals[int(num_samples/2):], 'b')
+    plt.plot(K_vals[0:int(num_samples/2)], M3_vals[0:int(num_samples/2)], 'r')
+    plt.plot(K_vals[int(num_samples/2):], M3_vals[int(num_samples/2):], 'b')
     plt.ylim(-1.0, 1.0)
 
 
     plt.ylabel("$M_{3}$")
-    plt.xlabel("K")
+    #plt.xlabel("B")
+    plt.xticks([])
+
 
     plt.subplot(515)   # Magnetization per spin, fourth lattice
-    plt.plot(B_vals[0:int(num_samples/2)], M4_vals[0:int(num_samples/2)], 'r')
-    plt.plot(B_vals[int(num_samples/2):], M4_vals[int(num_samples/2):], 'b')
+    plt.plot(K_vals[0:int(num_samples/2)], M4_vals[0:int(num_samples/2)], 'r')
+    plt.plot(K_vals[int(num_samples/2):], M4_vals[int(num_samples/2):], 'b')
     plt.ylim(-1.0, 1.0)
 
 
     plt.ylabel("$M_{4}$")
-    plt.xlabel("K (J_inter = {.05,.05,.05,0}, B = .1)")
+    #plt.xlabel("B (J_inter = {.05,.05,.05,0}, K = {.05,.05,.05,.05}, J_intra = {1.0,1.0,1.0,1.0})")
+    plt.xlabel("$K$ ($J_{FM} = 1.0$, $J_{AFM} = .1$, $B = .09$)")
+    plt.savefig("sim_results/sim_"+str(SIM_NUM)+".png")
+    with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:
+        pickle.dump([K_vals, M_vals, M1_vals, M2_vals, M3_vals, M4_vals], fp)
 
     plt.show()
+
 
 if __name__ == "__main__":
     #mag_v_temp(5, .1, 10000, 5000)

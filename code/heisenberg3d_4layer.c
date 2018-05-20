@@ -20,15 +20,16 @@ ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 #define ROWS 40       /* Number of rows in each lattice layer */
 #define COLS 40       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
-#define J_INTRA 1.0     /* Intra-layer interaction strength */
+/*#define J_INTRA 1.0*/     /* Intra-layer interaction strength */
 #define INIT_T 5      /* Initial temperature */
-#define SIM_NUM 20    /* Simulation number */
+#define SIM_NUM 68    /* Simulation number */
 #define SIM_CONFIG "sim_configs/sim_config.txt"    /* Simulation config file name */
 
-
+double J_INTRA[4] = {1.0, 1.0, 1.0, 1.0};
 double J_INTER[4] = {.05, .05, .05, 0};      /* Inter-layer interaction strength between each pair of layers */
-double B_EXT = -5;                           /* External field strength */
-double K[4] = {-.06, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+/*double B_EXT = -5;  */                         /* External field strength */
+double B_EXT = -5.0;
+double K[4] = {-.1, -.05, -.05, -.05};      /* Anistropic strength, per layer */
 
 
 int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
@@ -304,7 +305,7 @@ double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col
   */
 
   //delta_E = -J_INTRA*delta_dot_neighbor + J_INTER*delta_dot_inter + delta_a - B_EXT*gsl_vector_get(delta_vector,2);
-  delta_E = -J_INTRA*delta_dot_neighbor + delta_dot_inter + delta_a - B_EXT*gsl_vector_get(delta_vector,2);
+  delta_E = -J_INTRA[layer]*delta_dot_neighbor + delta_dot_inter + delta_a - B_EXT*gsl_vector_get(delta_vector,2);
 
   //printf("Delta E is %f \n", delta_E);
 
@@ -354,8 +355,8 @@ int M_v_B(double** results){
     clock_t begin = clock();
 
     FILE *f = fopen(SIM_CONFIG, "a");
-    fprintf(f, "Simulation %d: Size = %d, J_inter = {%f,%f,%f,%f}, K = {%f,%f,%f,%f}, J_intra = %f\n", SIM_NUM, ROWS, J_INTER[0], J_INTER[1],
-    J_INTER[2], J_INTER[3], K[0], K[1], K[2], K[3], J_INTRA);
+    fprintf(f, "Simulation %d: Size = %d, J_inter = {%f,%f,%f,%f}, K = {%f,%f,%f,%f}, J_intra = {%f,%f,%f,%f}\n", SIM_NUM, ROWS, J_INTER[0], J_INTER[1],
+    J_INTER[2], J_INTER[3], K[0], K[1], K[2], K[3], J_INTRA[0], J_INTRA[1], J_INTRA[2], J_INTRA[3]);
     fclose(f);
 
     int sample_counter = 0;
@@ -373,7 +374,7 @@ int M_v_B(double** results){
         results[sample_counter][5] = calc_magnetization( 3);
         sample_counter += 1;
 
-        B_EXT += .003;
+        B_EXT += .002;
     }
 
     while(B_EXT > -.2){
@@ -387,7 +388,7 @@ int M_v_B(double** results){
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
         sample_counter += 1;
-        B_EXT -= .003;
+        B_EXT -= .002;
     }
 
     clock_t end = clock();
@@ -402,15 +403,20 @@ int M_v_K(double** results){
 
     int sample_counter = 0;
     //B_EXT = .6;   /* Critical Switching Field */
+
+    FILE *f = fopen(SIM_CONFIG, "a");
+    fprintf(f, "Simulation %d: Size = %d, J_inter = {%f,%f,%f,%f}, K = {%f,%f,%f,%f}, J_intra = {%f,%f,%f,%f}\n", SIM_NUM, ROWS, J_INTER[0], J_INTER[1],
+    J_INTER[2], J_INTER[3], K[0], K[1], K[2], K[3], J_INTRA[0], J_INTRA[1], J_INTRA[2], J_INTRA[3]);
     double K_val = -1.0;
-    cool_lattice(.1);
+    cool_lattice(.15);
+    float delta_K = .005;
     while(K_val < 0){
-        K[0] = K_val;
-        K[1] = K_val;
-        K[2] = K_val;
-        K[3] = K_val;
+        K[0] += delta_K;
+        K[1] += delta_K;
+        K[2] += delta_K;
+        K[3] += delta_K;
         printf("K: %f\n", K_val);
-        simulate(10000, .1);
+        simulate(1000, .15);
         // Measure magnetization
         results[sample_counter][0] = K_val;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -424,12 +430,12 @@ int M_v_K(double** results){
     }
 
     while(K_val > -1.0){
-        K[0] = K_val;
-        K[1] = K_val;
-        K[2] = K_val;
-        K[3] = K_val;
+        K[0] -= delta_K;
+        K[1] -= delta_K;
+        K[2] -= delta_K;
+        K[3] -= delta_K;
         printf("K: %f\n", K_val);
-        simulate(10000, .1);
+        simulate(1000, .15);
         // Measure magnetization
         results[sample_counter][0] = K_val;
         results[sample_counter][1] = calc_magnetization( -1);
