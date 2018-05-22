@@ -17,19 +17,19 @@ ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 ************ 4 LAYER VERSION *****************
 */
 
-#define ROWS 40       /* Number of rows in each lattice layer */
-#define COLS 40       /* Number of columns in each lattice layer */
+#define ROWS 20       /* Number of rows in each lattice layer */
+#define COLS 20       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
 /*#define J_INTRA 1.0*/     /* Intra-layer interaction strength */
 #define INIT_T 5      /* Initial temperature */
-#define SIM_NUM 68    /* Simulation number */
+#define SIM_NUM 105   /* Simulation number */
 #define SIM_CONFIG "sim_configs/sim_config.txt"    /* Simulation config file name */
 
 double J_INTRA[4] = {1.0, 1.0, 1.0, 1.0};
-double J_INTER[4] = {.05, .05, .05, 0};      /* Inter-layer interaction strength between each pair of layers */
+double J_INTER[4] = {.3, .05, .05, 0};      /* Inter-layer interaction strength between each pair of layers */
 /*double B_EXT = -5;  */                         /* External field strength */
 double B_EXT = -5.0;
-double K[4] = {-.1, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+double K[4] = {.2, -.05, -.05, -.05};      /* Anistropic strength, per layer */
 
 
 int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
@@ -112,7 +112,9 @@ void simulate(int num_sweeps, double T){
   for(i = 0; i < num_sweeps; i++){
     num_accept += sweep(T);
   }
-  printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*4.0));
+  if(num_sweeps > 1){
+    printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*4.0));
+  }
 }
 
 int sweep(double T){
@@ -345,13 +347,13 @@ double calc_magnetization(int layer){
                 mag += lattice[layer][j][k].z;
         mag_spin = mag/(ROWS*COLS);
       }
-      printf("Magnetization per spin (layer %d) is %f \n", layer, mag_spin);
+      //printf("Magnetization per spin (layer %d) is %f \n", layer, mag_spin);
 
       return mag_spin;
 }
 
 int M_v_B(double** results){
-
+    int cor_count = 0;
     clock_t begin = clock();
 
     FILE *f = fopen(SIM_CONFIG, "a");
@@ -360,9 +362,9 @@ int M_v_B(double** results){
     fclose(f);
 
     int sample_counter = 0;
-    B_EXT = -.2;
+    B_EXT = -.4;
     cool_lattice(.15);
-    while(B_EXT < .2){
+    while(B_EXT < .4){
         printf("B: %f\n", B_EXT);
         simulate(1000, .15);
         // Measure magnetization
@@ -372,12 +374,27 @@ int M_v_B(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+
+        // Take average over 1000 sweeps
+        for(cor_count = 1; cor_count < 1000; cor_count++){
+          simulate(1, .15);
+          results[sample_counter][1] += calc_magnetization( -1);
+          results[sample_counter][2] += calc_magnetization( 0);
+          results[sample_counter][3] += calc_magnetization( 1);
+          results[sample_counter][4] += calc_magnetization( 2);
+          results[sample_counter][5] += calc_magnetization( 3);
+        }
+        results[sample_counter][1] = results[sample_counter][1]/1000.0;
+        results[sample_counter][2] = results[sample_counter][2]/1000.0;
+        results[sample_counter][3] = results[sample_counter][3]/1000.0;
+        results[sample_counter][4] = results[sample_counter][4]/1000.0;
+        results[sample_counter][5] = results[sample_counter][5]/1000.0;
         sample_counter += 1;
 
         B_EXT += .002;
     }
 
-    while(B_EXT > -.2){
+    while(B_EXT > -.4){
         printf("B: %f\n", B_EXT);
         simulate(1000, .15);
         // Measure magnetization
@@ -387,6 +404,21 @@ int M_v_B(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+
+        // Take average over 1000 sweeps
+        for(cor_count = 1; cor_count < 1000; cor_count++){
+          simulate(1, .15);
+          results[sample_counter][1] += calc_magnetization( -1);
+          results[sample_counter][2] += calc_magnetization( 0);
+          results[sample_counter][3] += calc_magnetization( 1);
+          results[sample_counter][4] += calc_magnetization( 2);
+          results[sample_counter][5] += calc_magnetization( 3);
+        }
+        results[sample_counter][1] = results[sample_counter][1]/1000.0;
+        results[sample_counter][2] = results[sample_counter][2]/1000.0;
+        results[sample_counter][3] = results[sample_counter][3]/1000.0;
+        results[sample_counter][4] = results[sample_counter][4]/1000.0;
+        results[sample_counter][5] = results[sample_counter][5]/1000.0;
         sample_counter += 1;
         B_EXT -= .002;
     }

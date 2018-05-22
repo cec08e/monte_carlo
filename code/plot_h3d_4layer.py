@@ -35,7 +35,7 @@ Todo:
     * Add command line flags to call module functions.
 
 """
-SIM_NUM = 68
+SIM_NUM = 105
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)
@@ -108,7 +108,7 @@ def plot_M_v_T(init_temp = 0, final_temp = 1, temp_step = .1):
     plt.xlabel('T (J_inter = {.1, .1, .1, 0} , K = {.1, .1, .1, .1})')
     plt.show()
 
-def plot_M_v_B(max_samples = 5000):
+def plot_M_v_B(max_samples = 10000):
     """ Plots the mean magnetization per spin vs. external field strength.
         Data is acquired by calling the M_v_B() function in the C implementation.
 
@@ -197,7 +197,7 @@ def plot_M_v_B(max_samples = 5000):
 
 
     plt.ylabel("$M_{4}$")
-    plt.xlabel("B (J_inter = {.05,.05,.05,0}, K = {.1,.05,.05,.05}, J_intra = {1.0,1.0,1.0,1.0})")
+    plt.xlabel("B (J_inter = {.3,.05,.05,0}, K = {.2,.05,.05,.05}, J_intra = {1.0,1.0,1.0,1.0})")
     #plt.xlabel("$H$ ($J_{FM} = 1.0$, $J_{AFM} = .05$, $K_{1} = .06$, $K_{234} = .05$)")
     plt.savefig("sim_results/sim_"+str(SIM_NUM)+".png")
     with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:

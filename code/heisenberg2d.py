@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import colors
 
 class Heisenberg2D(object):
-    def __init__(self, rows, cols, init_T = 0, k=0, B = .4, J = 1, D = .5):
+    def __init__(self, rows, cols, init_T = 0, k=0, B = .15, J = 1, D = .5):
         self.rows = rows
         self.cols = cols
         self.J = J
@@ -118,7 +118,7 @@ class Heisenberg2D(object):
         self.sweep_num = 1
         for i in range(num_sweeps):
             self.sweep(T)
-            if i+1 in [1,10,100,1000,10000]:
+            if i+1 in [1,10,100,1000,3000]:
                 self.visualize_lattice()
                 self.visualize_spins()
 
@@ -245,6 +245,6 @@ def plot_M_v_B():
     plt.show()
 
 if __name__ == "__main__":
-    lat = Heisenberg2D(20,20, init_T = 2)
-    lat.simulate(num_sweeps = 10000, T=.05)
+    lat = Heisenberg2D(30,30, init_T = 2)
+    lat.simulate(num_sweeps = 3000, T=.09)
     #plot_M_v_B()
