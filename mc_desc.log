@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  21 MAY 2018 20:18
+This is pdfTeX, Version 3.14159265-2.6-1.40.18 (TeX Live 2017) (preloaded format=pdflatex 2017.5.23)  25 MAY 2018 13:34
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1233,60 +1233,82 @@ Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: subfig package v1.3 is loaded.
 Package caption Info: End \AtBeginDocument code.
 
-Overfull \hbox (13.01196pt too wide) detected at line 12
+Overfull \hbox (19.88005pt too wide) detected at line 12
 \OML/cmm/m/it/10 H \OT1/cmr/m/n/10 = \OMS/cmsy/m/n/10 ^^@\OML/cmm/m/it/10 J[] [
-] [] [] \OMS/cmsy/m/n/10 ^^A [] \OT1/cmr/m/n/10 + \OML/cmm/m/it/10 J[] [] [] []
- \OMS/cmsy/m/n/10 ^^A [] \OT1/cmr/m/n/10 + \OML/cmm/m/it/10 K [] [][] \OMS/cmsy
-/m/n/10 ^^@ \OML/cmm/m/it/10 B [] S[]
+] [] [] \OMS/cmsy/m/n/10 ^^A [] \OT1/cmr/m/n/10 + [] \OML/cmm/m/it/10 J[] [] []
+ \OMS/cmsy/m/n/10 ^^A [] \OT1/cmr/m/n/10 + [] \OML/cmm/m/it/10 K[] [][] \OMS/cm
+sy/m/n/10 ^^@ \OML/cmm/m/it/10 B [] S[]
  []
 
-<4_patterns.png, id=1, 614.295pt x 481.3182pt>
-File: 4_patterns.png Graphic file (type png)
- <use 4_patterns.png>
-Package pdftex.def Info: 4_patterns.png used on input line 25.
-(pdftex.def)             Requested size: 345.0pt x 270.32219pt.
+<4_patterns_new.png, id=1, 604.1772pt x 592.1322pt>
+File: 4_patterns_new.png Graphic file (type png)
+ <use 4_patterns_new.png>
+Package pdftex.def Info: 4_patterns_new.png used on input line 25.
+(pdftex.def)             Requested size: 345.0pt x 338.12422pt.
 
-<bistable.png, id=3, 823.878pt x 394.1124pt>
-File: bistable.png Graphic file (type png)
- <use bistable.png>
-Package pdftex.def Info: bistable.png used on input line 34.
-(pdftex.def)             Requested size: 345.0pt x 165.03294pt.
+[1
 
-<sim_6.png, id=4, 462.528pt x 346.896pt>
-File: sim_6.png Graphic file (type png)
- <use sim_6.png>
-Package pdftex.def Info: sim_6.png used on input line 41.
-(pdftex.def)             Requested size: 345.0pt x 258.76335pt.
+{/usr/local/texlive/2017/texmf-var/fonts/map/pdftex/updmap/pdftex.map}]
+[2 <./4_patterns_new.png>]
+<bistable_new_2.png, id=18, 523.7166pt x 485.6544pt>
+File: bistable_new_2.png Graphic file (type png)
+ <use bistable_new_2.png>
+Package pdftex.def Info: bistable_new_2.png used on input line 37.
+(pdftex.def)             Requested size: 345.0pt x 319.94005pt.
 
-<sim_92.png, id=5, 462.528pt x 346.896pt>
-File: sim_92.png Graphic file (type png)
- <use sim_92.png>
-Package pdftex.def Info: sim_92.png used on input line 54.
-(pdftex.def)             Requested size: 345.0pt x 258.76335pt.
- [1
+<bistable_new_inset.png, id=19, 627.3036pt x 269.808pt>
+File: bistable_new_inset.png Graphic file (type png)
 
-{/usr/local/texlive/2017/texmf-var/fonts/map/pdftex/updmap/pdftex.map}] [2 <./4
-_patterns.png>]
-[3 <./bistable.png>] [4 <./sim_6.png>] [5 <./sim_92.png>] (./mc_desc.aux) ) 
+<use bistable_new_inset.png>
+Package pdftex.def Info: bistable_new_inset.png used on input line 42.
+(pdftex.def)             Requested size: 345.0pt x 148.39073pt.
+ <j_increase.png, id=20, 557.2017pt x 662.7159pt>
+File: j_increase.png Graphic file (type png)
+
+<use j_increase.png>
+Package pdftex.def Info: j_increase.png used on input line 49.
+(pdftex.def)             Requested size: 345.0pt x 410.33356pt.
+ [3 <./bistable_new_2.png>]
+<strong.png, id=25, 889.8846pt x 542.025pt>
+File: strong.png Graphic file (type png)
+ <use strong.png>
+Package pdftex.def Info: strong.png used on input line 64.
+(pdftex.def)             Requested size: 345.0pt x 210.13176pt.
+ [4 <./bistable_new_inset.png>] [5 <./j_increase.png>]
+<bistable_switch.png, id=34, 860.9766pt x 252.945pt>
+File: bistable_switch.png Graphic file (type png)
+ <use bistable_switch.png>
+Package pdftex.def Info: bistable_switch.png used on input line 81.
+(pdftex.def)             Requested size: 345.0pt x 101.3576pt.
+
+<switch_states.png, id=35, 472.6458pt x 534.0753pt>
+File: switch_states.png Graphic file (type png)
+ <use switch_states.png>
+Package pdftex.def Info: switch_states.png used on input line 89.
+(pdftex.def)             Requested size: 345.0pt x 389.85542pt.
+
+[6 <./strong.png>] [7 <./bistable_switch.png>] [8 <./switch_states.png>]
+(./mc_desc.aux) ) 
 Here is how much of TeX's memory you used:
- 11261 strings out of 492995
- 206440 string characters out of 6132704
- 250524 words of memory out of 5000000
- 14777 multiletter control sequences out of 15000+600000
+ 11276 strings out of 492995
+ 206862 string characters out of 6132704
+ 247524 words of memory out of 5000000
+ 14789 multiletter control sequences out of 15000+600000
  4094 words of font info for 16 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  44i,5n,42p,10383b,275s stack positions out of 5000i,500n,10000p,200000b,80000s
-</us
-r/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr
-/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/
-local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/lo
-cal/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/loca
-l/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmr7.pfb></usr/local/t
-exlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb>
-Output written on mc_desc.pdf (5 pages, 570572 bytes).
+</usr/local/texlive/2017/texmf-dist/fonts/type1/public/amsfont
+s/cm/cmex10.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts
+/cm/cmmi10.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmmi7.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm
+/cmr10.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/c
+mr7.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+10.pfb></usr/local/texlive/2017/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7
+.pfb>
+Output written on mc_desc.pdf (8 pages, 1005316 bytes).
 PDF statistics:
- 53 PDF objects out of 1000 (max. 8388607)
- 31 compressed objects within 1 object stream
+ 74 PDF objects out of 1000 (max. 8388607)
+ 42 compressed objects within 1 object stream
  0 named destinations out of 1000 (max. 500000)
- 21 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 36 words of extra memory for PDF output out of 10000 (max. 10000000)
 

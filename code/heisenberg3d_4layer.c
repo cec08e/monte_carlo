@@ -17,19 +17,19 @@ ALT: gcc -fPIC -shared -o heisenberg3d.so -lgsl -lgslcblas heisenberg3d.c
 ************ 4 LAYER VERSION *****************
 */
 
-#define ROWS 20       /* Number of rows in each lattice layer */
-#define COLS 20       /* Number of columns in each lattice layer */
+#define ROWS 40       /* Number of rows in each lattice layer */
+#define COLS 40       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
 /*#define J_INTRA 1.0*/     /* Intra-layer interaction strength */
 #define INIT_T 5      /* Initial temperature */
-#define SIM_NUM 105   /* Simulation number */
+#define SIM_NUM 194  /* Simulation number */
 #define SIM_CONFIG "sim_configs/sim_config.txt"    /* Simulation config file name */
 
 double J_INTRA[4] = {1.0, 1.0, 1.0, 1.0};
-double J_INTER[4] = {.3, .05, .05, 0};      /* Inter-layer interaction strength between each pair of layers */
+double J_INTER[4] = {.1, .1, .1, 0};      /* Inter-layer interaction strength between each pair of layers */
 /*double B_EXT = -5;  */                         /* External field strength */
-double B_EXT = -5.0;
-double K[4] = {.2, -.05, -.05, -.05};      /* Anistropic strength, per layer */
+double B_EXT = -.2;
+double K[4] = {-.05, -.05, -.05, -.05};      /* Anistropic strength, per layer */
 
 
 int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
@@ -54,13 +54,14 @@ int sweep( double);
 void perturb_spin(spin_t* , spin_t*);
 double calc_delta_E( spin_t* , spin_t*, int, int, int);
 double calc_magnetization( int);
+void spin_exp();
 int M_v_B(double**);
 int M_v_K(double**);
 int M_v_T(double**, double, double, double);
 
 
 int main(){
-  int rows, cols;
+  /*int rows, cols;
 
   clock_t begin = clock();
 
@@ -69,7 +70,8 @@ int main(){
   clock_t end = clock();
   double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
   printf("Execution time: %f \n", time_spent);
-
+*/
+  spin_exp();
 }
 
 void initialize_lattice(){
@@ -323,7 +325,8 @@ void cool_lattice(double T){
     float curr_temp;
     curr_temp = INIT_T;
     while(curr_temp > T){
-        curr_temp -= .035;
+        //curr_temp -= .035;
+        curr_temp -= .05;
         printf("Cooling to %f \n", curr_temp);
         simulate(1000, curr_temp);
     }
@@ -352,21 +355,46 @@ double calc_magnetization(int layer){
       return mag_spin;
 }
 
+void spin_exp(){
+    int i = 0;
+    int uduu = 0, uudu = 0;
+    int num_runs = 500;
+    B_EXT = .09;
+    for(i = 0; i < num_runs; i++){
+      initialize_lattice();
+      cool_lattice(.15);
+      //calc_magnetization( -1);
+      if ((calc_magnetization(0) > 0) && (calc_magnetization( 3) > 0)){
+        if ((calc_magnetization(1) > 0) && (calc_magnetization(2) < 0))
+        {
+            uudu += 1;
+        }
+        else if ((calc_magnetization(2) > 0) && (calc_magnetization(1) < 0))
+            uduu += 1;
+      }
+
+
+    }
+
+    printf("UUDU: %d \n UDUU: %d \n Num sims: %d\n", uudu, uduu, num_runs);
+
+}
+
 int M_v_B(double** results){
     int cor_count = 0;
     clock_t begin = clock();
 
     FILE *f = fopen(SIM_CONFIG, "a");
-    fprintf(f, "Simulation %d: Size = %d, J_inter = {%f,%f,%f,%f}, K = {%f,%f,%f,%f}, J_intra = {%f,%f,%f,%f}\n", SIM_NUM, ROWS, J_INTER[0], J_INTER[1],
+    fprintf(f, "Simulation %d: Size = %d, J_inter = {%f,%f,%f,%f}, K = {%f,%f,%f,%f}, J_intra = {%f,%f,%f,%f}, T=.15, Steps=25000\n", SIM_NUM, ROWS, J_INTER[0], J_INTER[1],
     J_INTER[2], J_INTER[3], K[0], K[1], K[2], K[3], J_INTRA[0], J_INTRA[1], J_INTRA[2], J_INTRA[3]);
     fclose(f);
 
     int sample_counter = 0;
-    B_EXT = -.4;
+    B_EXT = -.2;
     cool_lattice(.15);
-    while(B_EXT < .4){
+    while(B_EXT < .2){
         printf("B: %f\n", B_EXT);
-        simulate(1000, .15);
+        simulate(5000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -376,7 +404,7 @@ int M_v_B(double** results){
         results[sample_counter][5] = calc_magnetization( 3);
 
         // Take average over 1000 sweeps
-        for(cor_count = 1; cor_count < 1000; cor_count++){
+        for(cor_count = 1; cor_count < 25000; cor_count++){
           simulate(1, .15);
           results[sample_counter][1] += calc_magnetization( -1);
           results[sample_counter][2] += calc_magnetization( 0);
@@ -384,19 +412,19 @@ int M_v_B(double** results){
           results[sample_counter][4] += calc_magnetization( 2);
           results[sample_counter][5] += calc_magnetization( 3);
         }
-        results[sample_counter][1] = results[sample_counter][1]/1000.0;
-        results[sample_counter][2] = results[sample_counter][2]/1000.0;
-        results[sample_counter][3] = results[sample_counter][3]/1000.0;
-        results[sample_counter][4] = results[sample_counter][4]/1000.0;
-        results[sample_counter][5] = results[sample_counter][5]/1000.0;
+        results[sample_counter][1] = results[sample_counter][1]/25000.0;
+        results[sample_counter][2] = results[sample_counter][2]/25000.0;
+        results[sample_counter][3] = results[sample_counter][3]/25000.0;
+        results[sample_counter][4] = results[sample_counter][4]/25000.0;
+        results[sample_counter][5] = results[sample_counter][5]/25000.0;
         sample_counter += 1;
 
-        B_EXT += .002;
+        B_EXT += .005;
     }
 
-    while(B_EXT > -.4){
+    while(B_EXT > -.2){
         printf("B: %f\n", B_EXT);
-        simulate(1000, .15);
+        simulate(5000, .15);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         results[sample_counter][1] = calc_magnetization( -1);
@@ -406,7 +434,7 @@ int M_v_B(double** results){
         results[sample_counter][5] = calc_magnetization( 3);
 
         // Take average over 1000 sweeps
-        for(cor_count = 1; cor_count < 1000; cor_count++){
+        for(cor_count = 1; cor_count < 25000; cor_count++){
           simulate(1, .15);
           results[sample_counter][1] += calc_magnetization( -1);
           results[sample_counter][2] += calc_magnetization( 0);
@@ -414,13 +442,13 @@ int M_v_B(double** results){
           results[sample_counter][4] += calc_magnetization( 2);
           results[sample_counter][5] += calc_magnetization( 3);
         }
-        results[sample_counter][1] = results[sample_counter][1]/1000.0;
-        results[sample_counter][2] = results[sample_counter][2]/1000.0;
-        results[sample_counter][3] = results[sample_counter][3]/1000.0;
-        results[sample_counter][4] = results[sample_counter][4]/1000.0;
-        results[sample_counter][5] = results[sample_counter][5]/1000.0;
+        results[sample_counter][1] = results[sample_counter][1]/25000.0;
+        results[sample_counter][2] = results[sample_counter][2]/25000.0;
+        results[sample_counter][3] = results[sample_counter][3]/25000.0;
+        results[sample_counter][4] = results[sample_counter][4]/25000.0;
+        results[sample_counter][5] = results[sample_counter][5]/25000.0;
         sample_counter += 1;
-        B_EXT -= .002;
+        B_EXT -= .005;
     }
 
     clock_t end = clock();
@@ -432,6 +460,7 @@ int M_v_B(double** results){
 }
 
 int M_v_K(double** results){
+    int cor_count = 0;
 
     int sample_counter = 0;
     //B_EXT = .6;   /* Critical Switching Field */
@@ -456,6 +485,21 @@ int M_v_K(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+
+        // Take average over 1000 sweeps
+        for(cor_count = 1; cor_count < 100; cor_count++){
+          simulate(1, .15);
+          results[sample_counter][1] += calc_magnetization( -1);
+          results[sample_counter][2] += calc_magnetization( 0);
+          results[sample_counter][3] += calc_magnetization( 1);
+          results[sample_counter][4] += calc_magnetization( 2);
+          results[sample_counter][5] += calc_magnetization( 3);
+        }
+        results[sample_counter][1] = results[sample_counter][1]/100.0;
+        results[sample_counter][2] = results[sample_counter][2]/100.0;
+        results[sample_counter][3] = results[sample_counter][3]/100.0;
+        results[sample_counter][4] = results[sample_counter][4]/100.0;
+        results[sample_counter][5] = results[sample_counter][5]/100.0;
         sample_counter += 1;
 
         K_val += .005;
@@ -475,6 +519,21 @@ int M_v_K(double** results){
         results[sample_counter][3] = calc_magnetization( 1);
         results[sample_counter][4] = calc_magnetization( 2);
         results[sample_counter][5] = calc_magnetization( 3);
+
+        // Take average over 1000 sweeps
+        for(cor_count = 1; cor_count < 100; cor_count++){
+          simulate(1, .15);
+          results[sample_counter][1] += calc_magnetization( -1);
+          results[sample_counter][2] += calc_magnetization( 0);
+          results[sample_counter][3] += calc_magnetization( 1);
+          results[sample_counter][4] += calc_magnetization( 2);
+          results[sample_counter][5] += calc_magnetization( 3);
+        }
+        results[sample_counter][1] = results[sample_counter][1]/100.0;
+        results[sample_counter][2] = results[sample_counter][2]/100.0;
+        results[sample_counter][3] = results[sample_counter][3]/100.0;
+        results[sample_counter][4] = results[sample_counter][4]/100.0;
+        results[sample_counter][5] = results[sample_counter][5]/100.0;
         sample_counter += 1;
         K_val -= .005;
     }
