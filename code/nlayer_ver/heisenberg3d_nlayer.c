@@ -17,20 +17,24 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 ************ N LAYER VERSION *****************
 */
 
-#define ROWS 20       /* Number of rows in each lattice layer */
-#define COLS 20       /* Number of columns in each lattice layer */
+
+#define SIM_NUM 10
+#define ROWS 30       /* Number of rows in each lattice layer */
+#define COLS 30       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
 #define INIT_T 5      /* Initial temperature */
-#define DELTA_T .05   /* Annealing temp interval */
-#define K 0           /* Anisotropy strength (negative for easy-axis) */
+#define DELTA_T .035   /* Annealing temp interval */
+#define DELTA_B .004   /* B sweeping speed */
 #define D .5          /* DM interaction strength */
-#define NUM_L 1       /* Number of layers */
+#define NUM_L 3      /* Number of layers */
+#define SIM_CONFIG "sim_results/sim_config.txt"
+
 
 double B_EXT = -5.0;
 
-int ANNEAL_TIME = 1000;                      /* Annealing speed */
-int EQ_TIME = 1000;                          /* Number of equilibration sweeps */
-int COR_TIME = 2000;                         /* Number of correlation sweeps */
+int ANNEAL_TIME = 2000;                      /* Annealing speed */
+int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
+int COR_TIME = 15000;                         /* Number of correlation sweeps */
 
 typedef struct {
   double x;
@@ -48,15 +52,17 @@ float J_INTRA[NUM_L];
 float K[NUM_L];
 
 /* D vectors */
-gsl_vector * D_n = gsl_vector_alloc(3); /* north neighbor */
-gsl_vector * D_s = gsl_vector_alloc(3); /* south neighbor */
-gsl_vector * D_e = gsl_vector_alloc(3); /* east neighbor */
-gsl_vector * D_w = gsl_vector_alloc(3); /* west neighbor */
+gsl_vector * D_n; /* north neighbor */
+gsl_vector * D_s;/* south neighbor */
+gsl_vector * D_e;/* east neighbor */
+gsl_vector * D_w; /* west neighbor */
 
 void initialize_lattice();
 void initialize_params();
+void init_D_vec(gsl_vector* D_vec, float x, float y, float z);
 void gen_random_spin(spin_t*);
 void simulate( int, double);
+int sweep(double T);
 void perturb_spin(spin_t* , spin_t*);
 double calc_delta_E(spin_t* , spin_t*, int, int, int);
 void cross_product(const gsl_vector*, const gsl_vector*, gsl_vector*);
@@ -65,8 +71,11 @@ double calc_magnetization(int);
 int M_v_B(double**);
 
 void initialize_lattice(){
-  int i, j, k;
-
+  int l, i, j;
+  D_n = gsl_vector_alloc(3); /* north neighbor */
+  D_s = gsl_vector_alloc(3); /* south neighbor */
+  D_e = gsl_vector_alloc(3); /* east neighbor */
+  D_w = gsl_vector_alloc(3); /* west neighbor */
   initialize_params();
 
   rng = gsl_rng_alloc(gsl_rng_mt19937);
@@ -92,11 +101,12 @@ void initialize_params(){
   /* Change K, J_inter and J_intra parameters here */
   int j;
   for(j = 0; j < NUM_L; j++){
-    K[j] = .05;
+    K[j] = .1;
     J_INTER[j] = .1;
     J_INTRA[j] = 1.0;
   }
 
+  J_INTER[0] = .1;   /* TOP LAYERS */
   J_INTER[NUM_L-1] = 0; /* No interaction between 1st and last layer */
 
   /* Example, introducing small increased anisotropy on top layer:
@@ -108,7 +118,7 @@ void initialize_params(){
 
 }
 
-void init_D_vec(gsl_vector* D_vec, x, y, z){
+void init_D_vec(gsl_vector* D_vec, float x, float y, float z){
 
   gsl_vector_set(D_vec, 0, x);
   gsl_vector_set(D_vec, 1, y);
@@ -388,29 +398,30 @@ double calc_magnetization(int layer){
 /* EXPERIMENTS */
 int M_v_B(double** results){
     int cor_count = 0;
+    int n = 0;
     //clock_t begin = clock();
-    //FILE *f = fopen(SIM_CONFIG, "a");
-    //fprintf(f, "Simulation %d: Size = %d, J_inter = {%f,%f,%f,%f}, K = {%f,%f,%f,%f}, J_intra = {%f,%f,%f,%f}, T=.15, Steps=5000, dB = .004\n", SIM_NUM, ROWS, J_INTER[0], J_INTER[1],
-    //J_INTER[2], J_INTER[3], K[0], K[1], K[2], K[3], J_INTRA[0], J_INTRA[1], J_INTRA[2], J_INTRA[3]);
-    //fclose(f);
+    FILE *f = fopen(SIM_CONFIG, "a");
+    fprintf(f, "Simulation %d: Size = %d, T=.15, Steps=%d, dB = %f\n", SIM_NUM, ROWS, COR_TIME, DELTA_B);
+    for(n = 0; n < NUM_L; n++)
+      fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n], n, K[n]);
+    fclose(f);
     int sample_counter = 0;
     int i;
 
     B_EXT = -.2;
-    delta_B = .005;
+    //float delta_B = .004;
 
-    cool_lattice(.15);
+    cool_lattice(.13);
     while(B_EXT < .2){
         printf("B: %f\n", B_EXT);
-        simulate(EQ_TIME, .15);
+        simulate(EQ_TIME, .13);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         for(i=0; i <= NUM_L; i++)
           results[sample_counter][i+1] = calc_magnetization(i-1);
 
-        // Take average over 1000 sweeps
         for(cor_count = 1; cor_count < COR_TIME; cor_count++){
-          simulate(1, .15);
+          simulate(1, .13);
           for(i=0; i <= NUM_L; i++)
             results[sample_counter][i+1] = calc_magnetization(i-1);
         }
@@ -419,12 +430,14 @@ int M_v_B(double** results){
 
         sample_counter += 1;
 
-        B_EXT += delta_B;
+        B_EXT += DELTA_B;
     }
+
+    /* UNCOMMENT FOR NEGATIVE SWEEPING !!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
     while(B_EXT > -.2){
         printf("B: %f\n", B_EXT);
-        simulate(EQ_TIME, .15);
+        simulate(EQ_TIME, .13);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         for(i=0; i <= NUM_L; i++)
@@ -432,15 +445,16 @@ int M_v_B(double** results){
 
         // Take average over 1000 sweeps
         for(cor_count = 1; cor_count < COR_TIME; cor_count++){
-          simulate(1, .15);
+          simulate(1, .13);
           for(i=0; i <= NUM_L; i++)
             results[sample_counter][i+1] = calc_magnetization(i-1);
         }
         for(i=0; i <= NUM_L; i++)
           results[sample_counter][i+1] += results[sample_counter][i+1]/COR_TIME;
         sample_counter += 1;
-        B_EXT -= delta_B;
+        B_EXT -= DELTA_B;
     }
+
 
     //clock_t end = clock();
     //double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
