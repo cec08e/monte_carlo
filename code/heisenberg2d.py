@@ -120,7 +120,7 @@ class Heisenberg2D(object):
             self.sweep(T)
             if i+1 in [1,10,100,1000,3000]:
                 self.visualize_lattice()
-                self.visualize_spins()
+                #self.visualize_spins()
 
 
     def sweep(self, T):
@@ -172,7 +172,7 @@ class Heisenberg2D(object):
         delta_D += dot((0,-1*self.D,0), cross(delta_spin, self.lattice[(row+1)%self.rows][col]))    # south neighbor
         delta_D += dot((-1*self.D,0,0), cross(delta_spin, self.lattice[row][(col-1)%self.cols]))    # west neighbor
         delta_D += dot((self.D,0,0), cross(delta_spin, self.lattice[row][(col+1)%self.cols]))    # east neighbor
-
+        print("Delta_D is ", delta_D)
         delta_a = self.k*(power(delta_spin[2],2) + 2*delta_spin[2]*spin[2])
         # DM term: D * (Si x Sj) where D = self.D(r_ij x z)
         return -self.J*dot(delta_spin, neighbor_sum) - delta_D + delta_a - self.B*(delta_spin[2])

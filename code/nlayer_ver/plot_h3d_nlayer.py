@@ -2,22 +2,65 @@ from __future__ import print_function
 import ctypes
 import pickle
 
-SIM_NUM = 10
-NUM_L = 3
+SIM_NUM = 52
+NUM_L = 1
+ROWS = 100
+COLS = 100
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)
 
 _h3d = ctypes.CDLL('./heisenberg3d_nlayer.so')
+
+class Spin_t(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_double),
+                ("y", ctypes.c_double),
+                ("z", ctypes.c_double)]
+
+PSPIN_T = ctypes.POINTER(Spin_t)
+PPSPIN_T = ctypes.POINTER(PSPIN_T)
+PPPSPIN_T = ctypes.POINTER(PPSPIN_T)
+
+
+
 _h3d.initialize_lattice.argtypes = ()
 _h3d.M_v_B.argtypes = (ctypes.POINTER(PDOUBLE),)
 _h3d.M_v_B.restype = ctypes.c_int
+_h3d.record_lattice.argtypes = (ctypes.POINTER(PPSPIN_T),)
+_h3d.record_lattice.restype = None
 #_h3d.M_v_T.argtypes = (ctypes.POINTER(PDOUBLE), ctypes.c_double, ctypes.c_double, ctypes.c_double)
 #_h3d.M_v_T.restype = ctypes.c_int
 #_h3d.M_v_K.argtypes = (ctypes.POINTER(PDOUBLE),)
 #_h3d.M_v_K.restype = ctypes.c_int
 #_h3d.M_v_J.argtypes = (ctypes.POINTER(PDOUBLE),)
 #_h3d.M_v_J.restype = ctypes.c_int
+
+def plot_lattice():
+    global _h3d
+
+    col_arr = Spin_t*COLS
+    row_arr = PSPIN_T*ROWS
+    lattice_arr = PPSPIN_T*NUM_L
+
+    record = lattice_arr()
+    for i in range(NUM_L):
+        record[i] = row_arr()
+        for j in range(ROWS):
+            record[i][j] = col_arr()
+
+    _h3d.initialize_lattice()
+    _h3d.record_lattice(record)
+
+    data = [[] for i in range(NUM_L)]
+    for i in range(NUM_L):
+        for j in range(ROWS):
+            data[i].append([])
+            for k in range(COLS):
+                data[i][j].append((record[i][j][k].x, record[i][j][k].y, record[i][j][k].z))
+
+    with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:
+        pickle.dump(data, fp)
+
 
 def plot_M_v_B(max_samples = 10000):
     """ Plots the mean magnetization per spin vs. external field strength.
@@ -130,4 +173,4 @@ def plot_M_v_B(max_samples = 10000):
     #plt.show()
 
 if __name__ == "__main__":
-    plot_M_v_B()
+    plot_lattice()

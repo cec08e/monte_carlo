@@ -6,6 +6,8 @@
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_sf_exp.h>
+#include <gsl/gsl_complex.h>
+#include <gsl/gsl_complex_math.h>
 #include <time.h>
 
 /*
@@ -18,23 +20,23 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 */
 
 
-#define SIM_NUM 10
-#define ROWS 30       /* Number of rows in each lattice layer */
-#define COLS 30       /* Number of columns in each lattice layer */
+#define SIM_NUM 52
+#define ROWS 100       /* Number of rows in each lattice layer */
+#define COLS 100       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
-#define INIT_T 5      /* Initial temperature */
+#define INIT_T 2      /* Initial temperature */
 #define DELTA_T .035   /* Annealing temp interval */
 #define DELTA_B .004   /* B sweeping speed */
-#define D .5          /* DM interaction strength */
-#define NUM_L 3      /* Number of layers */
+#define D .3          /* DM interaction strength */
+#define NUM_L 1      /* Number of layers */
 #define SIM_CONFIG "sim_results/sim_config.txt"
 
 
-double B_EXT = -5.0;
+double B_EXT = .2;
 
 int ANNEAL_TIME = 2000;                      /* Annealing speed */
-int EQ_TIME = 5000;                          /* Number of equilibration sweeps */
-int COR_TIME = 15000;                         /* Number of correlation sweeps */
+int EQ_TIME = 10000;                          /* Number of equilibration sweeps */
+int COR_TIME = 20000;                         /* Number of correlation sweeps */
 
 typedef struct {
   double x;
@@ -52,14 +54,15 @@ float J_INTRA[NUM_L];
 float K[NUM_L];
 
 /* D vectors */
-gsl_vector * D_n; /* north neighbor */
-gsl_vector * D_s;/* south neighbor */
-gsl_vector * D_e;/* east neighbor */
-gsl_vector * D_w; /* west neighbor */
+gsl_vector * D_vec[4];
+//gsl_vector * D_n; /* north neighbor */
+//gsl_vector * D_s;/* south neighbor */
+//gsl_vector * D_e;/* east neighbor */
+//gsl_vector * D_w; /* west neighbor */
 
 void initialize_lattice();
 void initialize_params();
-void init_D_vec(gsl_vector* D_vec, float x, float y, float z);
+void init_D_vec();
 void gen_random_spin(spin_t*);
 void simulate( int, double);
 int sweep(double T);
@@ -67,15 +70,22 @@ void perturb_spin(spin_t* , spin_t*);
 double calc_delta_E(spin_t* , spin_t*, int, int, int);
 void cross_product(const gsl_vector*, const gsl_vector*, gsl_vector*);
 void cool_lattice(double);
+void record_lattice(spin_t***);
+void overrelax();
+void eff_project(spin_t*, int , int, int);
 double calc_magnetization(int);
 int M_v_B(double**);
+double calc_TC();
+double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3);
 
 void initialize_lattice(){
   int l, i, j;
-  D_n = gsl_vector_alloc(3); /* north neighbor */
-  D_s = gsl_vector_alloc(3); /* south neighbor */
-  D_e = gsl_vector_alloc(3); /* east neighbor */
-  D_w = gsl_vector_alloc(3); /* west neighbor */
+  for(i=0; i < 4; i++)
+    D_vec[i] = gsl_vector_alloc(3);
+  //D_n = gsl_vector_alloc(3); /* north neighbor */
+  //D_s = gsl_vector_alloc(3); /* south neighbor */
+  //D_e = gsl_vector_alloc(3); /* east neighbor */
+  //D_w = gsl_vector_alloc(3); /* west neighbor */
   initialize_params();
 
   rng = gsl_rng_alloc(gsl_rng_mt19937);
@@ -92,16 +102,17 @@ void initialize_lattice(){
 void initialize_params(){
   /* Initialize D vector values */
 
-  init_D_vec(D_n, 0, D, 0);
-  init_D_vec(D_s, 0, -D, 0);
-  init_D_vec(D_e, D, 0, 0);
-  init_D_vec(D_w, -D, 0, 0);
+  init_D_vec();
+  //init_D_vec(D_n, 0, D, 0);
+  //init_D_vec(D_s, 0, -D, 0);
+  //init_D_vec(D_e, D, 0, 0);
+  //init_D_vec(D_w, -D, 0, 0);
 
 
   /* Change K, J_inter and J_intra parameters here */
   int j;
   for(j = 0; j < NUM_L; j++){
-    K[j] = .1;
+    K[j] = -.0;
     J_INTER[j] = .1;
     J_INTRA[j] = 1.0;
   }
@@ -118,12 +129,48 @@ void initialize_params(){
 
 }
 
-void init_D_vec(gsl_vector* D_vec, float x, float y, float z){
+void init_D_vec(){
 
-  gsl_vector_set(D_vec, 0, x);
-  gsl_vector_set(D_vec, 1, y);
-  gsl_vector_set(D_vec, 2, z);
 
+  gsl_vector_set(D_vec[0], 0, 0);
+  gsl_vector_set(D_vec[0], 1, D);
+  gsl_vector_set(D_vec[0], 2, 0);
+
+
+  gsl_vector_set(D_vec[1], 0, 0);
+  gsl_vector_set(D_vec[1], 1, -D);
+  gsl_vector_set(D_vec[1], 2, 0);
+
+
+  gsl_vector_set(D_vec[2], 0, D);
+  gsl_vector_set(D_vec[2], 1, 0);
+  gsl_vector_set(D_vec[2], 2, 0);
+
+
+  gsl_vector_set(D_vec[3], 0, -D);
+  gsl_vector_set(D_vec[3], 1, 0);
+  gsl_vector_set(D_vec[3], 2, 0);
+
+  /*
+  gsl_vector_set(D_vec[0], 0, D);
+  gsl_vector_set(D_vec[0], 1, 0);
+  gsl_vector_set(D_vec[0], 2, 0);
+
+
+  gsl_vector_set(D_vec[1], 0, -D);
+  gsl_vector_set(D_vec[1], 1, 0);
+  gsl_vector_set(D_vec[1], 2, 0);
+
+
+  gsl_vector_set(D_vec[2], 0, 0);
+  gsl_vector_set(D_vec[2], 1, -D);
+  gsl_vector_set(D_vec[2], 2, 0);
+
+
+  gsl_vector_set(D_vec[3], 0, 0);
+  gsl_vector_set(D_vec[3], 1, D);
+  gsl_vector_set(D_vec[3], 2, 0);
+  */
 
 }
 
@@ -151,12 +198,13 @@ void simulate(int num_sweeps, double T){
   int i, num_accept = 0;
   for(i = 0; i < num_sweeps; i++){
     num_accept += sweep(T);
+    //overrelax();
   }
-  /*
+
   if(num_sweeps > 1){
-    printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*NUM_L));
+    printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*NUM_L*1.0));
   }
-  */
+
 }
 
 int sweep(double T){
@@ -279,11 +327,14 @@ void perturb_spin(spin_t* temp_spin, spin_t* spin){
 
 double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col){
 
+  gsl_vector* neighbors[4];
+  gsl_vector* cross_temp = gsl_vector_alloc(3);
   double delta_dot_neighbor;
   double delta_dot_inter;
   double delta_a;
   double delta_E;
   double delta_D;
+  double temp;
   int i;
 
   /* FIRST TERM */
@@ -329,7 +380,39 @@ double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col
 
   /* FOURTH TERM */
   /* TO DO: DELTA D CALCULATION */
+
+  /* NORTH */
+  neighbors[0] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[0], 0, lattice[layer][(((row-1)%ROWS) + ROWS) % ROWS][col].x);
+  gsl_vector_set(neighbors[0], 1, lattice[layer][(((row-1)%ROWS) + ROWS) % ROWS][col].y);
+  gsl_vector_set(neighbors[0], 2, lattice[layer][(((row-1)%ROWS) + ROWS) % ROWS][col].z);
+
+  /* SOUTH */
+  neighbors[1] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[1], 0, lattice[layer][(((row+1)%ROWS) + ROWS) % ROWS][col].x);
+  gsl_vector_set(neighbors[1], 1, lattice[layer][(((row+1)%ROWS) + ROWS) % ROWS][col].y);
+  gsl_vector_set(neighbors[1], 2, lattice[layer][(((row+1)%ROWS) + ROWS) % ROWS][col].z);
+
+  /* EAST */
+  neighbors[2] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[2], 0, lattice[layer][row][(((col+1)%COLS) + COLS) % COLS].x);
+  gsl_vector_set(neighbors[2], 1, lattice[layer][row][(((col+1)%COLS) + COLS) % COLS].y);
+  gsl_vector_set(neighbors[2], 2, lattice[layer][row][(((col+1)%COLS) + COLS) % COLS].z);
+
+  neighbors[3] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[3], 0, lattice[layer][row][(((col-1)%COLS) + COLS) % COLS].x);
+  gsl_vector_set(neighbors[3], 1, lattice[layer][row][(((col-1)%COLS) + COLS) % COLS].y);
+  gsl_vector_set(neighbors[3], 2, lattice[layer][row][(((col-1)%COLS) + COLS) % COLS].z);
+
   delta_D = 0;
+
+  for(i = 0; i < 4; i++){
+    cross_product(delta_vector, neighbors[i], cross_temp);
+    gsl_blas_ddot(D_vec[i], cross_temp, &temp);
+    delta_D += temp;
+  }
+
+  //printf("Delta D is %f \n", delta_D);
   /*
   for (i = 0; i < 3; i++){
     printf ("neighbor_vector_%d = %g\n", i, gsl_vector_get (neighbor_vector, i));
@@ -348,16 +431,23 @@ double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col
   /* END FOURTH TERM */
 
 
-
+  //printf("Inter term: %f \n", delta_dot_inter);
+  //printf("Anisotropy term: %f \n", delta_a);
+  //printf("DM term: -%f \n", delta_D);
 
   //delta_E = -J_INTRA*delta_dot_neighbor + J_INTER*delta_dot_inter + delta_a - B_EXT*gsl_vector_get(delta_vector,2);
-  delta_E = -J_INTRA[layer]*delta_dot_neighbor + delta_dot_inter + delta_a + delta_D - B_EXT*gsl_vector_get(delta_vector,2);
+  delta_E = -J_INTRA[layer]*delta_dot_neighbor + delta_dot_inter + delta_a - delta_D - B_EXT*gsl_vector_get(delta_vector,2);
 
   //printf("Delta E is %f \n", delta_E);
 
   gsl_vector_free(delta_vector);
   gsl_vector_free(neighbor_vector);
   gsl_vector_free(inter_vector);
+  gsl_vector_free(cross_temp);
+  gsl_vector_free(neighbors[0]);
+  gsl_vector_free(neighbors[1]);
+  gsl_vector_free(neighbors[2]);
+  gsl_vector_free(neighbors[3]);
 
   return delta_E;
 
@@ -371,6 +461,76 @@ void cool_lattice(double T){
       simulate(ANNEAL_TIME, curr_temp);
   }
 
+}
+
+void overrelax(){
+  /* Overrelaxation step performed between every sweep.
+
+    Reflect every spin on the lattice to the other side of the effective field vector.
+
+  */
+
+
+
+  spin_t temp;
+  int i, j, k;
+  for(i = 0; i < NUM_L; i++)
+    for(j=0; j < ROWS; j++)
+      for(k = 0; k < COLS; k++){
+        eff_project(&temp, i, j, k);
+        /* Reflect spin (j,k) on layer i */
+        lattice[i][j][k].x = 2*temp.x - lattice[i][j][k].x;
+        lattice[i][j][k].y = 2*temp.y - lattice[i][j][k].y;
+        lattice[i][j][k].z = 2*temp.z - lattice[i][j][k].z;
+      }
+}
+
+void eff_project(spin_t* temp, int layer, int row, int col){
+
+  /* Calculate and store V(s*V/|V|^2) for spin at (j,k) on layer i */
+
+  gsl_vector * V = gsl_vector_alloc(3);
+  gsl_vector * N = gsl_vector_alloc(3);
+  gsl_vector * S = gsl_vector_alloc(3);
+  gsl_vector * E = gsl_vector_alloc(3);
+  gsl_vector * W = gsl_vector_alloc(3);
+
+  gsl_vector* neighbors[4];
+
+  /* NORTH */
+  neighbors[0] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[0], 0, lattice[layer][(((row-1)%ROWS) + ROWS) % ROWS][col].x);
+  gsl_vector_set(neighbors[0], 1, lattice[layer][(((row-1)%ROWS) + ROWS) % ROWS][col].y);
+  gsl_vector_set(neighbors[0], 2, lattice[layer][(((row-1)%ROWS) + ROWS) % ROWS][col].z);
+
+  /* SOUTH */
+  neighbors[1] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[1], 0, lattice[layer][(((row+1)%ROWS) + ROWS) % ROWS][col].x);
+  gsl_vector_set(neighbors[1], 1, lattice[layer][(((row+1)%ROWS) + ROWS) % ROWS][col].y);
+  gsl_vector_set(neighbors[1], 2, lattice[layer][(((row+1)%ROWS) + ROWS) % ROWS][col].z);
+
+  /* EAST */
+  neighbors[2] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[2], 0, lattice[layer][row][(((col+1)%COLS) + COLS) % COLS].x);
+  gsl_vector_set(neighbors[2], 1, lattice[layer][row][(((col+1)%COLS) + COLS) % COLS].y);
+  gsl_vector_set(neighbors[2], 2, lattice[layer][row][(((col+1)%COLS) + COLS) % COLS].z);
+
+  /* WEST */
+  neighbors[3] = gsl_vector_alloc(3);
+  gsl_vector_set(neighbors[3], 0, lattice[layer][row][(((col-1)%COLS) + COLS) % COLS].x);
+  gsl_vector_set(neighbors[3], 1, lattice[layer][row][(((col-1)%COLS) + COLS) % COLS].y);
+  gsl_vector_set(neighbors[3], 2, lattice[layer][row][(((col-1)%COLS) + COLS) % COLS].z);
+
+
+
+  /* Add together neighbors with J_intra, and cross products of neighbors with D, and Bz*/
+
+
+  gsl_vector_free(V);
+  gsl_vector_free(neighbors[0]);
+  gsl_vector_free(neighbors[1]);
+  gsl_vector_free(neighbors[2]);
+  gsl_vector_free(neighbors[3]);
 }
 
 double calc_magnetization(int layer){
@@ -392,6 +552,38 @@ double calc_magnetization(int layer){
         mag_spin = mag/(ROWS*COLS);
       }
       return mag_spin;
+}
+
+void record_lattice(spin_t*** record){
+  int i, j, k, n;
+  float T = 1.02;
+
+  /* Cool the lattice to T  and record the lattice configuration after 5000 sweeps */
+  FILE *f = fopen(SIM_CONFIG, "a");
+  fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
+  fprintf(f,"\tD = %f\n", D);
+  fprintf(f,"\tB = %f\n", B_EXT);
+  fprintf(f,"\tT = %f\n", T);
+  fprintf(f,"\tCOR time = %d sweeps \n", COR_TIME);
+
+  for(n = 0; n < NUM_L; n++)
+    fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n], n, K[n]);
+  fclose(f);
+
+  cool_lattice(T);
+  simulate(COR_TIME, T);
+
+  /* Record lattice configuration to results */
+  for(i = 0; i < NUM_L; i++)
+    for(j = 0; j < ROWS; j++)
+      for(k = 0; k < COLS; k++){
+        record[i][j][k].x = lattice[i][j][k].x;
+        record[i][j][k].y = lattice[i][j][k].y;
+        record[i][j][k].z = lattice[i][j][k].z;
+      }
+
+  printf("Topological charge is %f \n", calc_TC());
+
 }
 
 
@@ -463,6 +655,88 @@ int M_v_B(double** results){
     return sample_counter;
 
 }
+
+double calc_TC(){
+  /* Calculate the topological charge by triangulating the lattice and
+     Sum over all solid angles of each three spin config and divide by 4pi.
+     Solid angles computed by Berg formula.
+     At site (i,j), calc solid angle for triangles [(i,j), (i-1,j), (i,j-1)],
+     [(i,j), (i-1,j), (i,j+1)], [(i,j), (i,j-1), (i+1, j)], [(i,j), (i,j+1), (i+1,j)]
+  */
+  double solid_angle_sum = 0;
+
+  int i, j, k;
+  for(i = 0; i < NUM_L; i++)
+    for(j=0; j < ROWS; j++)
+      for(k=0; k < COLS; k++){
+        solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS]);
+        solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][k], lattice[i][j][(k+1)%COLS]);
+        solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j+1)%ROWS][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS]);
+        solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j+1)%ROWS][k], lattice[i][j][(k+1)%COLS]);
+        printf("Solid angle sum is now %f \n", solid_angle_sum);
+
+      }
+
+  return solid_angle_sum/(4*M_PI);
+
+}
+
+double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3){
+
+  gsl_complex c_temp;
+  gsl_vector * n1_vec = gsl_vector_alloc(3);
+  gsl_vector * n2_vec = gsl_vector_alloc(3);
+  gsl_vector * n3_vec = gsl_vector_alloc(3);
+  gsl_vector * n2_cross_n3 = gsl_vector_alloc(3);
+
+  double n1_dot_n2;
+  double n2_dot_n3;
+  double n3_dot_n1;
+  double n1_dot_n2_cross_n3;
+
+  double rho;
+  double Omega;
+
+
+  gsl_vector_set(n1_vec, 0, n1.x);
+  gsl_vector_set(n1_vec, 1, n1.y);
+  gsl_vector_set(n1_vec, 2, n1.z);
+
+  gsl_vector_set(n2_vec, 0, n2.x);
+  gsl_vector_set(n2_vec, 1, n2.y);
+  gsl_vector_set(n2_vec, 2, n2.z);
+
+  gsl_vector_set(n3_vec, 0, n3.x);
+  gsl_vector_set(n3_vec, 1, n3.y);
+  gsl_vector_set(n3_vec, 2, n3.z);
+
+  cross_product(n2_vec, n3_vec, n2_cross_n3);
+
+  gsl_blas_ddot(n1_vec, n2_vec, &n1_dot_n2);
+  gsl_blas_ddot(n2_vec, n3_vec, &n2_dot_n3);
+  gsl_blas_ddot(n3_vec, n1_vec, &n3_dot_n1);
+  gsl_blas_ddot(n1_vec, n2_cross_n3, &n1_dot_n2_cross_n3);
+
+  printf("n1_dot_n2: %f\n", n1_dot_n2);
+  printf("n2_dot_n3: %f\n", n2_dot_n3);
+  printf("n3_dot_n1: %f\n", n3_dot_n1);
+
+  rho = sqrt(2*(1+n1_dot_n2)*(1+n2_dot_n3)*(1+n3_dot_n1));
+  printf("Rho is %f \n", rho);
+  GSL_SET_COMPLEX(&c_temp, (1.0/rho)*(1 + n1_dot_n2 + n2_dot_n3 + n3_dot_n1), (1.0/rho)*n1_dot_n2_cross_n3);
+  Omega = 2*GSL_IMAG(gsl_complex_log(c_temp));
+
+  gsl_vector_free(n1_vec);
+  gsl_vector_free(n2_vec);
+  gsl_vector_free(n3_vec);
+  gsl_vector_free(n2_cross_n3);
+
+
+  return Omega;
+
+}
+
+
 
 /* Helper function for energy calculation */
 

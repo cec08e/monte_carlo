@@ -5,6 +5,13 @@ from matplotlib import pyplot as plt
 orange = "#FF8000"
 olive = "#008000"
 
+def visualize_lattice(sim_num):
+    filename = "sim_results/sim_" + str(sim_num) + ".pickle"
+    data = pickle.load(open(filename, 'rb'))
+    print(data)
+    plt.imshow([[item[2] for item in row] for row in data[0]], cmap=plt.get_cmap('Spectral'))
+    plt.show()
+
 def plot_k_data(sim_num):
     filename = "sim_results/sim_" + str(sim_num) + ".pickle"
     data = pickle.load(open(filename, 'rb'))
@@ -77,10 +84,39 @@ def plot_k_data(sim_num):
 
     plt.show()
 
+def plot_multi_data(sim_num_list, color_list, J_vals = []):
+    fig = plt.figure(figsize=(7,5))
+    ax0 = fig.add_subplot(1, 1, 1)
+
+    for sim_num, col, j in zip(sim_num_list, color_list, J_vals):
+        filename = "dirac_results/sim_" + str(sim_num) + ".pickle"
+
+        data = pickle.load(open(filename, 'rb'))
+        num_samples = len(data[0])
+        B_vals = data[0]
+        M_vals = data[1]
+        #M1_vals = data[2]
+        #M2_vals = data[3]
+        #M3_vals = data[4]
+
+        ax0.plot(B_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], color=col, linewidth=1.0, label=j)
+        ax0.plot(B_vals[int(num_samples/2):], M_vals[int(num_samples/2):], color =col, linewidth = 1.0)
+        ax0.set_ylim(-1, 1)
+        ax0.set_xlim(-.3,.3)
+        #plt.setp(ax0.get_xticklabels(), visible=False)
+
+        ax0.set_ylabel("$M$",fontsize=13)
+    plt.legend(title = "$J_{AFM,1}$, $J_{AFM,2}$")
+    ax0.set_xlabel("$B$", fontsize=13)
+
+
+    plt.show()
 
 
 def plot_data(sim_num):
-    filename = "sim_results/sim_" + str(sim_num) + ".pickle"
+    #filename = "sim_results/sim_" + str(sim_num) + ".pickle"
+    filename = "dirac_results/sim_" + str(sim_num) + ".pickle"
+
     #filename = "sim_results/sim_" + str(sim_num) + ".pickle"
     data = pickle.load(open(filename, 'rb'))
     print(data)
@@ -107,7 +143,7 @@ def plot_data(sim_num):
     ax0.plot(B_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], color=orange, linewidth=2.0)
     ax0.plot(B_vals[int(num_samples/2):], M_vals[int(num_samples/2):], color =olive, linewidth = 2.0)
     ax0.set_ylim(-1, 1)
-    ax0.set_xlim(-.2,.2)
+    ax0.set_xlim(-.3,.3)
     #plt.setp(ax0.get_xticklabels(), visible=False)
 
     ax0.set_ylabel("$M$",fontsize=13)
@@ -123,7 +159,7 @@ def plot_data(sim_num):
     ax1.set_ylabel("$M_{1}$",fontsize=13)
     #ax1.text(.11, -.5, "$K = 0.05$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
     #ax1.text(.3, -.5, "$K = 0.05$\n$J_{AFM,1}=0.25$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
-    #ax1.text(.15, -.5, "$K = 0.08$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
+    ax1.text(.22, -.5, "$K = 0.08$\n$J = 0.1$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
 
     #plt.xticks([])
     #plt.xlabel("B")
@@ -144,7 +180,7 @@ def plot_data(sim_num):
     ax2.set_ylabel("$M_{2}$",fontsize=13)
     #ax2.text(.11, -.5, "$K = 0.05$\n$J_{AFM,2} = 0.2$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
     #ax2.text(.3, -.6, "$K = 0.05$\n$J_{AFM,2}=0.2$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
-    #ax2.text(.15, -.5, "$K = 0.05$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
+    ax2.text(.22, -.5, "$K = 0.08$\n$J = 0.24$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
 
     #plt.xticks([])
 
@@ -168,7 +204,7 @@ def plot_data(sim_num):
     ax3.set_ylabel("$M_{3}$",fontsize=13)
     #ax3.text(.11, 0, "$K = 0.05$\n$J_{AFM,3} = 0.2$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
     #ax3.text(.3, -.6, "$K = 0.05$\n$J_{AFM,3}=0.2$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
-    #ax3.text(.15, -.5, "$K = 0.05$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
+    ax3.text(.15, -.5, "$K = 0.08$", fontsize = 10, bbox=dict(edgecolor='black', fill = False, alpha=0.5))
 
     #plt.xlabel("B")
     #plt.xticks([])
@@ -192,4 +228,6 @@ def plot_data(sim_num):
     plt.show()
 
 if __name__ == "__main__":
-    plot_data(5)
+    #plot_data(50)
+    visualize_lattice(45)
+    #plot_multi_data([42,43,44,45,46,47,48,49], ['b','g','r','c','m','y','k', orange], [".15,.15",".18,.15",".21,.15",".24,.15",".1,.15",".1,.18",".1,.21",".1,.24"])
