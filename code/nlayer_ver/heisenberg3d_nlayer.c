@@ -20,19 +20,19 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 */
 
 
-#define SIM_NUM 52
-#define ROWS 100       /* Number of rows in each lattice layer */
-#define COLS 100       /* Number of columns in each lattice layer */
+#define SIM_NUM 58
+#define ROWS 20       /* Number of rows in each lattice layer */
+#define COLS 20       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
 #define INIT_T 2      /* Initial temperature */
 #define DELTA_T .035   /* Annealing temp interval */
 #define DELTA_B .004   /* B sweeping speed */
-#define D .3          /* DM interaction strength */
+#define D 2.0          /* DM interaction strength */
 #define NUM_L 1      /* Number of layers */
 #define SIM_CONFIG "sim_results/sim_config.txt"
 
 
-double B_EXT = .2;
+double B_EXT = 0;
 
 int ANNEAL_TIME = 2000;                      /* Annealing speed */
 int EQ_TIME = 10000;                          /* Number of equilibration sweeps */
@@ -48,6 +48,7 @@ typedef spin_t lattice_t[NUM_L][ROWS][COLS];
 
 gsl_rng * rng;
 lattice_t lattice;
+lattice_t lattice_copy;
 
 float J_INTER[NUM_L];
 float J_INTRA[NUM_L];
@@ -197,8 +198,9 @@ void gen_random_spin(spin_t* spin){
 void simulate(int num_sweeps, double T){
   int i, num_accept = 0;
   for(i = 0; i < num_sweeps; i++){
+    //printf("Sweep #: %d\n", i);
     num_accept += sweep(T);
-    //overrelax();
+    overrelax();
   }
 
   if(num_sweeps > 1){
@@ -468,10 +470,10 @@ void overrelax(){
 
     Reflect every spin on the lattice to the other side of the effective field vector.
 
+    QUESTION: Does overrelaxing need to be performed using the entire old-state? Jiadong
+    uses already overrelaxed spin configurations in future overrelaxation procedures. 
+
   */
-
-
-
   spin_t temp;
   int i, j, k;
   for(i = 0; i < NUM_L; i++)
@@ -479,23 +481,42 @@ void overrelax(){
       for(k = 0; k < COLS; k++){
         eff_project(&temp, i, j, k);
         /* Reflect spin (j,k) on layer i */
-        lattice[i][j][k].x = 2*temp.x - lattice[i][j][k].x;
-        lattice[i][j][k].y = 2*temp.y - lattice[i][j][k].y;
-        lattice[i][j][k].z = 2*temp.z - lattice[i][j][k].z;
+        lattice_copy[i][j][k].x = 2*temp.x - lattice[i][j][k].x;
+        lattice_copy[i][j][k].y = 2*temp.y - lattice[i][j][k].y;
+        lattice_copy[i][j][k].z = 2*temp.z - lattice[i][j][k].z;
       }
+
+  for(i = 0; i < NUM_L; i++)
+    for(j=0; j < ROWS; j++)
+      for(k = 0; k < COLS; k++){
+            lattice[i][j][k].x = lattice_copy[i][j][k].x;
+            lattice[i][j][k].y = lattice_copy[i][j][k].y;
+            lattice[i][j][k].z = lattice_copy[i][j][k].z;
+      }
+
 }
 
-void eff_project(spin_t* temp, int layer, int row, int col){
+void eff_project(spin_t* field, int layer, int row, int col){
 
   /* Calculate and store V(s*V/|V|^2) for spin at (j,k) on layer i */
 
   gsl_vector * V = gsl_vector_alloc(3);
-  gsl_vector * N = gsl_vector_alloc(3);
-  gsl_vector * S = gsl_vector_alloc(3);
-  gsl_vector * E = gsl_vector_alloc(3);
-  gsl_vector * W = gsl_vector_alloc(3);
+  gsl_vector * s = gsl_vector_alloc(3);
+  //gsl_vector * N = gsl_vector_alloc(3);
+  //gsl_vector * S = gsl_vector_alloc(3);
+  //gsl_vector * E = gsl_vector_alloc(3);
+  //gsl_vector * W = gsl_vector_alloc(3);
+  gsl_vector * cross_temp = gsl_vector_alloc(3);
+  int i;
+  double V_x = 0, V_y = 0, V_z = 0;
+  double temp;
 
   gsl_vector* neighbors[4];
+
+  gsl_vector_set(s, 0, lattice[layer][row][col].x);
+  gsl_vector_set(s, 1, lattice[layer][row][col].y);
+  gsl_vector_set(s, 2, lattice[layer][row][col].z);
+
 
   /* NORTH */
   neighbors[0] = gsl_vector_alloc(3);
@@ -525,8 +546,34 @@ void eff_project(spin_t* temp, int layer, int row, int col){
 
   /* Add together neighbors with J_intra, and cross products of neighbors with D, and Bz*/
 
+  for(i = 0; i < 4; i++){
+    V_x += -J_INTRA[layer]*gsl_vector_get(neighbors[i], 0);
+    V_y += -J_INTRA[layer]*gsl_vector_get(neighbors[i], 1);
+    V_z += -J_INTRA[layer]*gsl_vector_get(neighbors[i], 2);
+
+    cross_product(neighbors[i], D_vec[i], cross_temp);
+    V_x += gsl_vector_get(cross_temp, 0);
+    V_y += gsl_vector_get(cross_temp, 1);
+    V_z += gsl_vector_get(cross_temp, 2);
+
+  }
+  V_z += -B_EXT;
+
+
+  gsl_vector_set(V, 0, V_x);
+  gsl_vector_set(V, 1, V_y);
+  gsl_vector_set(V, 2, V_z);
+
+  gsl_blas_ddot(s, V, &temp);
+  temp = temp/(gsl_pow_2(V_x) + gsl_pow_2(V_y) + gsl_pow_2(V_z));
+
+  field->x = V_x*temp;
+  field->y = V_y*temp;
+  field->z = V_z*temp;
 
   gsl_vector_free(V);
+  gsl_vector_free(s);
+  gsl_vector_free(cross_temp);
   gsl_vector_free(neighbors[0]);
   gsl_vector_free(neighbors[1]);
   gsl_vector_free(neighbors[2]);
@@ -556,7 +603,7 @@ double calc_magnetization(int layer){
 
 void record_lattice(spin_t*** record){
   int i, j, k, n;
-  float T = 1.02;
+  float T = .15;
 
   /* Cool the lattice to T  and record the lattice configuration after 5000 sweeps */
   FILE *f = fopen(SIM_CONFIG, "a");

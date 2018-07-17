@@ -2,10 +2,10 @@ from __future__ import print_function
 import ctypes
 import pickle
 
-SIM_NUM = 52
+SIM_NUM = 58
 NUM_L = 1
-ROWS = 100
-COLS = 100
+ROWS = 20
+COLS = 20
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)

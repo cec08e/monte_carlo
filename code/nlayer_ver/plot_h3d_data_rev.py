@@ -229,5 +229,5 @@ def plot_data(sim_num):
 
 if __name__ == "__main__":
     #plot_data(50)
-    visualize_lattice(45)
+    visualize_lattice(58)
     #plot_multi_data([42,43,44,45,46,47,48,49], ['b','g','r','c','m','y','k', orange], [".15,.15",".18,.15",".21,.15",".24,.15",".1,.15",".1,.18",".1,.21",".1,.24"])
