@@ -1,11 +1,21 @@
 from __future__ import print_function
 import ctypes
 import pickle
+from functools import reduce
+from scipy.integrate import simps
+import shelve
+from random import choice
+from numpy import exp, power
+from numpy.random import randint, rand, seed
+import logging
+from matplotlib import pyplot, colors
+from scipy.optimize import curve_fit
+import time
 
-SIM_NUM = 58
+SIM_NUM = 92
 NUM_L = 1
-ROWS = 20
-COLS = 20
+ROWS = 30
+COLS = 30
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)
@@ -28,12 +38,49 @@ _h3d.M_v_B.argtypes = (ctypes.POINTER(PDOUBLE),)
 _h3d.M_v_B.restype = ctypes.c_int
 _h3d.record_lattice.argtypes = (ctypes.POINTER(PPSPIN_T),)
 _h3d.record_lattice.restype = None
+_h3d.sample_mag.argtypes = (PDOUBLE, ctypes.c_int)
+_h3d.sample_mag.restype = None
 #_h3d.M_v_T.argtypes = (ctypes.POINTER(PDOUBLE), ctypes.c_double, ctypes.c_double, ctypes.c_double)
 #_h3d.M_v_T.restype = ctypes.c_int
 #_h3d.M_v_K.argtypes = (ctypes.POINTER(PDOUBLE),)
 #_h3d.M_v_K.restype = ctypes.c_int
 #_h3d.M_v_J.argtypes = (ctypes.POINTER(PDOUBLE),)
 #_h3d.M_v_J.restype = ctypes.c_int
+
+def autocorrelate_mag(sweeps, selection):
+    # Calc and plot magnetization autocorrelation function as a function of sweeps
+    # Average magnetization per site
+
+    # self.mag_vals should hold all the magnetization per spin values calculated at the end of
+    # each sweep.
+    global _h3d
+    mag_vals_arr = ctypes.c_double*sweeps
+    mag_vals = mag_vals_arr()
+
+    _h3d.initialize_lattice()
+    _h3d.sample_mag(mag_vals, sweeps)
+
+    avg_mag = reduce((lambda x,y: x+y), mag_vals)/len(mag_vals)
+    avg_mag_sq = power(avg_mag, 2)
+
+    chi_0 = autocorrelate_int(avg_mag_sq, 0, sweeps, mag_vals) # Initial autocorrelation function chi(0)
+    x = [i for i in range(selection)]
+    y = [autocorrelate_int(avg_mag_sq, i, sweeps, mag_vals, norm=chi_0) for i in range(selection)]
+    pyplot.plot(x, y, 'b')
+    pyplot.ylabel('Magnetization autocorrelation $\chi(t)$')
+    pyplot.xlabel('Sweeps')
+
+    pyplot.show()
+
+
+def autocorrelate_int(avg_mag_sq, t, sweep_num, mag_vals, norm = 1):
+    # Performs autocorrelation integral at sweep t
+    # Can only integrate over t'=0 to t'=(self.step_num/self.lat_size)-t ?
+    #t_prime = [i for i in range((int(self.step_num/self.lat_size) - t))] # x samples
+    t_prime = [i for i in range(sweep_num - t)] # x samples
+    y_samples = [((mag_vals[i]*mag_vals[i+t]) - avg_mag_sq)/norm for i in t_prime]
+    return simps(y_samples, t_prime)
+
 
 def plot_lattice():
     global _h3d
@@ -173,4 +220,5 @@ def plot_M_v_B(max_samples = 10000):
     #plt.show()
 
 if __name__ == "__main__":
-    plot_lattice()
+    #plot_lattice()
+    autocorrelate_mag(500000, 50000)

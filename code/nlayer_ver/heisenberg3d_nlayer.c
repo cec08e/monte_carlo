@@ -20,23 +20,25 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 */
 
 
-#define SIM_NUM 58
+#define SIM_NUM 92
 #define ROWS 20       /* Number of rows in each lattice layer */
 #define COLS 20       /* Number of columns in each lattice layer */
 #define RADIUS .6     /* Radius of tangent disc in perturbing function */
 #define INIT_T 2      /* Initial temperature */
+#define TEMP 1.25       /* Final Temp */
 #define DELTA_T .035   /* Annealing temp interval */
 #define DELTA_B .004   /* B sweeping speed */
-#define D 2.0          /* DM interaction strength */
+#define D .3        /* DM interaction strength */
 #define NUM_L 1      /* Number of layers */
 #define SIM_CONFIG "sim_results/sim_config.txt"
+#define OVER_FLAG 1
 
 
-double B_EXT = 0;
+double B_EXT = .2;
 
-int ANNEAL_TIME = 2000;                      /* Annealing speed */
+int ANNEAL_TIME = 5000;                      /* Annealing speed */
 int EQ_TIME = 10000;                          /* Number of equilibration sweeps */
-int COR_TIME = 20000;                         /* Number of correlation sweeps */
+int COR_TIME = 250000;                         /* Number of correlation sweeps */
 
 typedef struct {
   double x;
@@ -78,6 +80,7 @@ double calc_magnetization(int);
 int M_v_B(double**);
 double calc_TC();
 double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3);
+void sample_mag(double*, int);
 
 void initialize_lattice(){
   int l, i, j;
@@ -196,11 +199,14 @@ void gen_random_spin(spin_t* spin){
 }
 
 void simulate(int num_sweeps, double T){
-  int i, num_accept = 0;
+  int i, num_or, num_accept = 0;
   for(i = 0; i < num_sweeps; i++){
     //printf("Sweep #: %d\n", i);
     num_accept += sweep(T);
-    overrelax();
+    for(num_or = 0; num_or < OVER_FLAG; num_or++){
+      //printf("Overrelaxing.");
+      overrelax();
+    }
   }
 
   if(num_sweeps > 1){
@@ -471,7 +477,7 @@ void overrelax(){
     Reflect every spin on the lattice to the other side of the effective field vector.
 
     QUESTION: Does overrelaxing need to be performed using the entire old-state? Jiadong
-    uses already overrelaxed spin configurations in future overrelaxation procedures. 
+    uses already overrelaxed spin configurations in future overrelaxation procedures.
 
   */
   spin_t temp;
@@ -481,11 +487,11 @@ void overrelax(){
       for(k = 0; k < COLS; k++){
         eff_project(&temp, i, j, k);
         /* Reflect spin (j,k) on layer i */
-        lattice_copy[i][j][k].x = 2*temp.x - lattice[i][j][k].x;
-        lattice_copy[i][j][k].y = 2*temp.y - lattice[i][j][k].y;
-        lattice_copy[i][j][k].z = 2*temp.z - lattice[i][j][k].z;
+        lattice[i][j][k].x = 2*temp.x - lattice[i][j][k].x;
+        lattice[i][j][k].y = 2*temp.y - lattice[i][j][k].y;
+        lattice[i][j][k].z = 2*temp.z - lattice[i][j][k].z;
       }
-
+  /*
   for(i = 0; i < NUM_L; i++)
     for(j=0; j < ROWS; j++)
       for(k = 0; k < COLS; k++){
@@ -493,6 +499,8 @@ void overrelax(){
             lattice[i][j][k].y = lattice_copy[i][j][k].y;
             lattice[i][j][k].z = lattice_copy[i][j][k].z;
       }
+
+  */
 
 }
 
@@ -603,22 +611,17 @@ double calc_magnetization(int layer){
 
 void record_lattice(spin_t*** record){
   int i, j, k, n;
-  float T = .15;
+  double TC = 0;
+
 
   /* Cool the lattice to T  and record the lattice configuration after 5000 sweeps */
-  FILE *f = fopen(SIM_CONFIG, "a");
-  fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
-  fprintf(f,"\tD = %f\n", D);
-  fprintf(f,"\tB = %f\n", B_EXT);
-  fprintf(f,"\tT = %f\n", T);
-  fprintf(f,"\tCOR time = %d sweeps \n", COR_TIME);
 
-  for(n = 0; n < NUM_L; n++)
-    fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n], n, K[n]);
-  fclose(f);
-
-  cool_lattice(T);
-  simulate(COR_TIME, T);
+  cool_lattice(TEMP);
+  for(int i = 0; i < 3; i++){
+    simulate(COR_TIME, TEMP);
+    TC += calc_TC();
+  }
+  TC = TC/3.0;
 
   /* Record lattice configuration to results */
   for(i = 0; i < NUM_L; i++)
@@ -629,7 +632,21 @@ void record_lattice(spin_t*** record){
         record[i][j][k].z = lattice[i][j][k].z;
       }
 
-  printf("Topological charge is %f \n", calc_TC());
+  FILE *f = fopen(SIM_CONFIG, "a");
+  fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
+  fprintf(f,"\tD = %f\n", D);
+  fprintf(f,"\tB = %f\n", B_EXT);
+  fprintf(f,"\tT = %f\n", TEMP);
+  fprintf(f,"\tOverrelaxation: %d\n", OVER_FLAG);
+  fprintf(f,"\tCOR time = %d sweeps \n", COR_TIME);
+  fprintf(f,"\tTC averaged over 3 correlation times.\n");
+
+  for(n = 0; n < NUM_L; n++)
+    fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n], n, K[n]);
+  fprintf(f, "\tTopological charge: %f \n", TC);
+  fclose(f);
+
+  printf("Topological charge is %f \n", TC);
 
 }
 
@@ -720,7 +737,7 @@ double calc_TC(){
         solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][k], lattice[i][j][(k+1)%COLS]);
         solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j+1)%ROWS][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS]);
         solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j+1)%ROWS][k], lattice[i][j][(k+1)%COLS]);
-        printf("Solid angle sum is now %f \n", solid_angle_sum);
+        //printf("Solid angle sum is now %f \n", solid_angle_sum);
 
       }
 
@@ -764,12 +781,12 @@ double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3){
   gsl_blas_ddot(n3_vec, n1_vec, &n3_dot_n1);
   gsl_blas_ddot(n1_vec, n2_cross_n3, &n1_dot_n2_cross_n3);
 
-  printf("n1_dot_n2: %f\n", n1_dot_n2);
-  printf("n2_dot_n3: %f\n", n2_dot_n3);
-  printf("n3_dot_n1: %f\n", n3_dot_n1);
+  //printf("n1_dot_n2: %f\n", n1_dot_n2);
+  //printf("n2_dot_n3: %f\n", n2_dot_n3);
+  //printf("n3_dot_n1: %f\n", n3_dot_n1);
 
   rho = sqrt(2*(1+n1_dot_n2)*(1+n2_dot_n3)*(1+n3_dot_n1));
-  printf("Rho is %f \n", rho);
+  //printf("Rho is %f \n", rho);
   GSL_SET_COMPLEX(&c_temp, (1.0/rho)*(1 + n1_dot_n2 + n2_dot_n3 + n3_dot_n1), (1.0/rho)*n1_dot_n2_cross_n3);
   Omega = 2*GSL_IMAG(gsl_complex_log(c_temp));
 
@@ -781,6 +798,17 @@ double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3){
 
   return Omega;
 
+}
+
+
+void sample_mag(double* mag_vals, int sweeps){
+  int i = 0;
+  for(i=0; i < sweeps; i++){
+    sweep(TEMP);
+    mag_vals[i] = calc_magnetization(-1);
+    if(i%10000 == 0)
+      printf("Sweep %d: %f\n", i, mag_vals[i]);
+  }
 }
 
 
