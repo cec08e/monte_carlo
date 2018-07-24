@@ -114,8 +114,8 @@ def plot_multi_data(sim_num_list, color_list, J_vals = []):
 
 
 def plot_data(sim_num):
-    #filename = "sim_results/sim_" + str(sim_num) + ".pickle"
-    filename = "dirac_results/sim_" + str(sim_num) + ".pickle"
+    filename = "sim_results/sim_" + str(sim_num) + ".pickle"
+    #filename = "dirac_results/sim_" + str(sim_num) + ".pickle"
 
     #filename = "sim_results/sim_" + str(sim_num) + ".pickle"
     data = pickle.load(open(filename, 'rb'))
@@ -124,18 +124,18 @@ def plot_data(sim_num):
     B_vals = data[0]
     print("B vals: ", B_vals, "\n\n")
     M_vals = data[1]
-    M1_vals = data[2]
-    M2_vals = data[3]
-    M3_vals = data[4]
+    #M1_vals = data[2]
+    #M2_vals = data[3]
+    #M3_vals = data[4]
     #M4_vals = data[5]
 
     #fig, ax = plt.subplots(5, 1, figsize=(7,7), sharex=True)   # Magnetization per spin, all lattices
     fig = plt.figure(figsize=(7,7))
     #ax0 = fig.add_subplot(6, 1, (1,2))
     ax0 = fig.add_subplot(4, 1, 1)
-    ax1 = fig.add_subplot(4, 1, 2, sharex = ax0)
-    ax2 = fig.add_subplot(4, 1, 3, sharex = ax0)
-    ax3 = fig.add_subplot(4, 1, 4, sharex = ax0)
+    #ax1 = fig.add_subplot(4, 1, 2, sharex = ax0)
+    #ax2 = fig.add_subplot(4, 1, 3, sharex = ax0)
+    #ax3 = fig.add_subplot(4, 1, 4, sharex = ax0)
     #ax4 = fig.add_subplot(6, 1, 6, sharex = ax0)
 
 
@@ -143,12 +143,12 @@ def plot_data(sim_num):
     ax0.plot(B_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], color=orange, linewidth=2.0)
     ax0.plot(B_vals[int(num_samples/2):], M_vals[int(num_samples/2):], color =olive, linewidth = 2.0)
     ax0.set_ylim(-1, 1)
-    ax0.set_xlim(-.3,.3)
+    ax0.set_xlim(0,5)
     #plt.setp(ax0.get_xticklabels(), visible=False)
 
     ax0.set_ylabel("$M$",fontsize=13)
 
-
+    '''
     #plt.subplot(512)   # Magnetization per spin, first lattice
     ax1.plot(B_vals[0:int(num_samples/2)], M1_vals[0:int(num_samples/2)], color=orange, linewidth=2.0)
     ax1.plot(B_vals[int(num_samples/2):], M1_vals[int(num_samples/2):], color =olive, linewidth = 2.0)
@@ -208,7 +208,7 @@ def plot_data(sim_num):
 
     #plt.xlabel("B")
     #plt.xticks([])
-
+    '''
 
     '''
     #plt.subplot(515)   # Magnetization per spin, fourth lattice
@@ -228,6 +228,6 @@ def plot_data(sim_num):
     plt.show()
 
 if __name__ == "__main__":
-    #plot_data(50)
-    visualize_lattice(63)
+    plot_data(100)
+    #visualize_lattice(63)
     #plot_multi_data([42,43,44,45,46,47,48,49], ['b','g','r','c','m','y','k', orange], [".15,.15",".18,.15",".21,.15",".24,.15",".1,.15",".1,.18",".1,.21",".1,.24"])

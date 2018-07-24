@@ -20,25 +20,25 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 */
 
 
-#define SIM_NUM 92
-#define ROWS 20       /* Number of rows in each lattice layer */
-#define COLS 20       /* Number of columns in each lattice layer */
-#define RADIUS .6     /* Radius of tangent disc in perturbing function */
-#define INIT_T 2      /* Initial temperature */
-#define TEMP 1.25       /* Final Temp */
+#define SIM_NUM 121
+#define ROWS 32       /* Number of rows in each lattice layer */
+#define COLS 32       /* Number of columns in each lattice layer */
+#define RADIUS 1000     /* Radius of tangent disc in perturbing function */
+#define INIT_T 4      /* Initial temperature */
+#define TEMP 1.0       /* Final Temp */
 #define DELTA_T .035   /* Annealing temp interval */
 #define DELTA_B .004   /* B sweeping speed */
 #define D .3        /* DM interaction strength */
 #define NUM_L 1      /* Number of layers */
 #define SIM_CONFIG "sim_results/sim_config.txt"
-#define OVER_FLAG 1
+#define OVER_FLAG 0
 
 
 double B_EXT = .2;
 
-int ANNEAL_TIME = 5000;                      /* Annealing speed */
-int EQ_TIME = 10000;                          /* Number of equilibration sweeps */
-int COR_TIME = 250000;                         /* Number of correlation sweeps */
+int ANNEAL_TIME = 10000;                      /* Annealing speed */
+int EQ_TIME = 50000;                          /* Number of equilibration sweeps */
+int COR_TIME = 2600;                         /* Number of correlation sweeps */
 
 typedef struct {
   double x;
@@ -81,6 +81,9 @@ int M_v_B(double**);
 double calc_TC();
 double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3);
 void sample_mag(double*, int);
+int mag_v_temp(double**);
+int suscept_v_temp(double**);
+
 
 void initialize_lattice(){
   int l, i, j;
@@ -617,11 +620,11 @@ void record_lattice(spin_t*** record){
   /* Cool the lattice to T  and record the lattice configuration after 5000 sweeps */
 
   cool_lattice(TEMP);
-  for(int i = 0; i < 3; i++){
+  for(int i = 0; i < 1000; i++){
     simulate(COR_TIME, TEMP);
     TC += calc_TC();
   }
-  TC = TC/3.0;
+  TC = TC/1000.0;
 
   /* Record lattice configuration to results */
   for(i = 0; i < NUM_L; i++)
@@ -633,13 +636,15 @@ void record_lattice(spin_t*** record){
       }
 
   FILE *f = fopen(SIM_CONFIG, "a");
+  fprintf(f, "Simulation %d\n", SIM_NUM);
   fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
   fprintf(f,"\tD = %f\n", D);
   fprintf(f,"\tB = %f\n", B_EXT);
   fprintf(f,"\tT = %f\n", TEMP);
   fprintf(f,"\tOverrelaxation: %d\n", OVER_FLAG);
   fprintf(f,"\tCOR time = %d sweeps \n", COR_TIME);
-  fprintf(f,"\tTC averaged over 3 correlation times.\n");
+  fprintf(f,"\tEQ time = %d sweeps \n", EQ_TIME);
+  fprintf(f,"\tTC averaged over 1000 correlation times.\n");
 
   for(n = 0; n < NUM_L; n++)
     fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n], n, K[n]);
@@ -803,6 +808,7 @@ double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3){
 
 void sample_mag(double* mag_vals, int sweeps){
   int i = 0;
+  simulate(EQ_TIME, TEMP);
   for(i=0; i < sweeps; i++){
     sweep(TEMP);
     mag_vals[i] = calc_magnetization(-1);
@@ -811,6 +817,65 @@ void sample_mag(double* mag_vals, int sweeps){
   }
 }
 
+int mag_v_temp(double** mag_vals){
+  /* Perform num_sweeps number of sweeps, measuring magnetization
+  after every sweep and recording in mag_vals. */
+  simulate(EQ_TIME, 5.0);
+  float curr_temp = 5.0;
+  int i = 0;
+
+  mag_vals[i][0] = curr_temp;
+  mag_vals[i][1] = calc_magnetization(-1);
+  while(curr_temp > 0.3){
+    simulate(EQ_TIME,curr_temp);
+    mag_vals[i][0] = curr_temp;
+    mag_vals[i++][1] = calc_magnetization(-1);
+    curr_temp -= DELTA_T;
+
+  }
+
+  FILE *f = fopen(SIM_CONFIG, "a");
+  fprintf(f, "Simulation %d: Mag v Temp\n", SIM_NUM);
+  fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
+  fprintf(f,"\tD = %f\n", D);
+  fprintf(f,"\tB = %f\n", B_EXT);
+  fprintf(f,"\tOverrelaxation: %d\n", OVER_FLAG);
+  fclose(f);
+
+
+  return i;
+
+}
+
+int suscept_v_temp(double** s_vals){
+  /* Perform num_sweeps number of sweeps, measuring susceptibility
+  after every sweep and recording in s_vals. */
+  simulate(EQ_TIME, 5.0);
+  float curr_temp = 5.0;
+  int i = 0;
+
+  s_vals[i][0] = curr_temp;
+  s_vals[i][1] = calc_magnetization(-1);
+  while(curr_temp > 0.5){
+    sweep(curr_temp);
+    s_vals[i][0] = curr_temp;
+    s_vals[i++][1] = calc_magnetization(-1);
+    curr_temp -= DELTA_T;
+
+  }
+
+  FILE *f = fopen(SIM_CONFIG, "a");
+  fprintf(f, "Simulation %d: Suscept v Temp\n", SIM_NUM);
+  fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
+  fprintf(f,"\tD = %f\n", D);
+  fprintf(f,"\tB = %f\n", B_EXT);
+  fprintf(f,"\tOverrelaxation: %d\n", OVER_FLAG);
+  fclose(f);
+
+
+  return i;
+
+}
 
 
 /* Helper function for energy calculation */

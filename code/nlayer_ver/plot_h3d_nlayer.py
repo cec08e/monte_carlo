@@ -12,10 +12,10 @@ from matplotlib import pyplot, colors
 from scipy.optimize import curve_fit
 import time
 
-SIM_NUM = 92
+SIM_NUM = 121
 NUM_L = 1
-ROWS = 30
-COLS = 30
+ROWS = 32
+COLS = 32
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)
@@ -40,6 +40,9 @@ _h3d.record_lattice.argtypes = (ctypes.POINTER(PPSPIN_T),)
 _h3d.record_lattice.restype = None
 _h3d.sample_mag.argtypes = (PDOUBLE, ctypes.c_int)
 _h3d.sample_mag.restype = None
+
+_h3d.mag_v_temp.argtypes = (ctypes.POINTER(PDOUBLE),)
+_h3d.mag_v_temp.restype = ctypes.c_int
 #_h3d.M_v_T.argtypes = (ctypes.POINTER(PDOUBLE), ctypes.c_double, ctypes.c_double, ctypes.c_double)
 #_h3d.M_v_T.restype = ctypes.c_int
 #_h3d.M_v_K.argtypes = (ctypes.POINTER(PDOUBLE),)
@@ -77,9 +80,36 @@ def autocorrelate_int(avg_mag_sq, t, sweep_num, mag_vals, norm = 1):
     # Performs autocorrelation integral at sweep t
     # Can only integrate over t'=0 to t'=(self.step_num/self.lat_size)-t ?
     #t_prime = [i for i in range((int(self.step_num/self.lat_size) - t))] # x samples
+    print("Autocorrelating with t = ", t)
     t_prime = [i for i in range(sweep_num - t)] # x samples
     y_samples = [((mag_vals[i]*mag_vals[i+t]) - avg_mag_sq)/norm for i in t_prime]
     return simps(y_samples, t_prime)
+
+def plot_mag():
+    global _h3d
+
+    mag_vals_entry = ctypes.c_double*2
+    mag_vals_arr = PDOUBLE*10000
+
+    mag_vals = mag_vals_arr()
+
+    for i in range(10000):
+        mag_vals[i] = mag_vals_entry()
+
+    _h3d.initialize_lattice()
+    num_samples = _h3d.mag_v_temp(mag_vals)
+
+    data = [[] for i in range(2)]
+    for i in range(num_samples):
+        data[0].append(mag_vals[i][0])
+        data[1].append(mag_vals[i][1])
+
+
+    with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:
+        pickle.dump(data, fp)
+
+
+
 
 
 def plot_lattice():
@@ -220,5 +250,6 @@ def plot_M_v_B(max_samples = 10000):
     #plt.show()
 
 if __name__ == "__main__":
-    #plot_lattice()
-    autocorrelate_mag(500000, 50000)
+    plot_lattice()
+    #autocorrelate_mag(100000, 5000)
+    #plot_mag()
