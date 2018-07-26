@@ -70,7 +70,8 @@ lattice_t lattice_copy;
 /* D vectors */
 gsl_vector * D_vec[4];
 
-void initialize_lattice();
+void initialize_lattice(char *);
+void parse_config_file(char *);
 void initialize_params();
 void init_D_vec();
 void gen_random_spin(spin_t*);
@@ -98,14 +99,19 @@ int main(){
   test_lattice_TC();
 }
 
-void initialize_lattice(){
+void initialize_lattice(char * config_fn){
   int l, i, j;
   for(i=0; i < 4; i++)
     D_vec[i] = gsl_vector_alloc(3
 
   init_D_vec();
 
-  initialize_params();
+  if(!strcmp(config_fn, "")){
+    printf("Using configuration file: %s\n", config_fn);
+    parse_config_file(config_fn);
+  }
+
+  //initialize_params();
 
   rng = gsl_rng_alloc(gsl_rng_mt19937);
   gsl_rng_set (rng, time(NULL));
@@ -118,7 +124,11 @@ void initialize_lattice(){
   }
 }
 
+void parse_config_file(char * config_fn){
+  /* Format of config file:
 
+  */
+}
 
 void initialize_params(){
   /* Initialize D vector values */
