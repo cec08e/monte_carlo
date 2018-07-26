@@ -1,15 +1,73 @@
 import pickle
 from matplotlib import pyplot as plt
+from itertools import cycle
 #import matplotlib.gridspec as gridspec
 
 orange = "#FF8000"
 olive = "#008000"
+
+paper_data = [[2.5, -0.168000],
+                [2.4, -0.053333],
+                [2.3, -0.015667],
+                [2.2, -0.066600],
+                [2.1,  -0.163333],
+                [2.0, -0.025800],
+                [1.9, -0.171000 ],
+                [1.8, -0.291667],
+                [1.7, -0.309600],
+                [1.6, -0.351667],
+                [1.5, -0.244000],
+                [1.4,  -0.488000 ],
+                [1.3, -0.559000],
+                [1.2, -0.617000 ],
+                [1.1, -1.085667 ],
+                [1.0, -1.251600],
+                [0.9, -1.283800],
+                [0.8, -1.244200],
+                [0.7, -.937400],
+                [0.6, -0.409000],
+                [0.5, -0.126000 ],
+                [0.4, -0.014667],
+                [0.3, -0.000667 ],
+                [0.2, 0.0]]
 
 def visualize_lattice(sim_num):
     filename = "sim_results/sim_" + str(sim_num) + ".pickle"
     data = pickle.load(open(filename, 'rb'))
     print(data)
     plt.imshow([[item[2] for item in row] for row in data[0]], cmap=plt.get_cmap('Spectral'))
+    plt.show()
+
+def plot_auto_data(data_list):
+    col = 'g'
+    lab = "0 OR"
+    i = 0
+    for sim in data_list:
+        filename = "sim_results/sim_" + str(sim) + ".pickle"
+        data = pickle.load(open(filename, 'rb'))
+        print(data)
+        plt.plot(data[0], data[1], color=col, label =lab)
+        if i == 0:
+            col = 'b'
+            lab = "1 OR"
+        if i == 1:
+            col = 'r'
+            lab = '2 OR'
+        i = 1
+        plt.xlim(-10,200)
+    plt.xlabel("Sweeps")
+    plt.ylabel("$\chi$")
+    plt.legend()
+    plt.show()
+
+
+def plot_paper_data():
+    plt.plot([x[0] for x in paper_data], [x[1]*.976 for x in paper_data], 'g^')
+    plt.ylabel("Q/1000 spins")
+    plt.xlabel("T")
+    plt.ylim(-1.75,.1)
+    plt.xlim(0,3.0)
+    plt.text(1.5, -.8, "J = 1.00, D = .3, B = .2, L = 32", withdash=False)
     plt.show()
 
 def plot_k_data(sim_num):
@@ -130,9 +188,11 @@ def plot_data(sim_num):
     #M4_vals = data[5]
 
     #fig, ax = plt.subplots(5, 1, figsize=(7,7), sharex=True)   # Magnetization per spin, all lattices
-    fig = plt.figure(figsize=(7,7))
+    #fig = plt.figure(figsize=(7,7))
+    fig = plt.figure()
     #ax0 = fig.add_subplot(6, 1, (1,2))
-    ax0 = fig.add_subplot(4, 1, 1)
+    #ax0 = fig.add_subplot(4, 1, 1)
+    ax0 =fig.add_subplot(1,1,1)
     #ax1 = fig.add_subplot(4, 1, 2, sharex = ax0)
     #ax2 = fig.add_subplot(4, 1, 3, sharex = ax0)
     #ax3 = fig.add_subplot(4, 1, 4, sharex = ax0)
@@ -140,9 +200,10 @@ def plot_data(sim_num):
 
 
 
-    ax0.plot(B_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], color=orange, linewidth=2.0)
-    ax0.plot(B_vals[int(num_samples/2):], M_vals[int(num_samples/2):], color =olive, linewidth = 2.0)
-    ax0.set_ylim(-1, 1)
+    #ax0.plot(B_vals[0:int(num_samples/2)], M_vals[0:int(num_samples/2)], color=orange, linewidth=2.0)
+    #ax0.plot(B_vals[int(num_samples/2):], M_vals[int(num_samples/2):], color =olive, linewidth = 2.0)
+    ax0.plot(B_vals, M_vals)
+    #ax0.set_ylim(-1, 1)
     ax0.set_xlim(0,5)
     #plt.setp(ax0.get_xticklabels(), visible=False)
 
@@ -228,6 +289,8 @@ def plot_data(sim_num):
     plt.show()
 
 if __name__ == "__main__":
-    plot_data(100)
+    #plot_paper_data()
+    plot_auto_data([179,180,181])
+    #plot_data(155)
     #visualize_lattice(63)
     #plot_multi_data([42,43,44,45,46,47,48,49], ['b','g','r','c','m','y','k', orange], [".15,.15",".18,.15",".21,.15",".24,.15",".1,.15",".1,.18",".1,.21",".1,.24"])
