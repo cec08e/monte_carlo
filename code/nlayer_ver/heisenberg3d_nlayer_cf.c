@@ -19,35 +19,40 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 ************ N LAYER VERSION *****************
 */
 
+/* NOTES: NEED to switch to dynamically allocated lattice to make variable sizes work */
+
 /*********************************************/
 /*    Simulation Parameters                  */
 /*    May be set here or passed through      */
 /*    initialize lattice.                    */
 /*********************************************/
 
-int SIM_NUM = 185;    /* Simulation number - appears in both configuration and result files */
+int SIM_NUM = 185;       /* Simulation number - appears in both configuration and result files */
 
 int NUM_L = 1;           /* Number of layers */
-int ROWS = 20;        /* Number of rows in each lattice layer */
-int COLS = 20;        /* Number of columns in each lattice layer */
+int ROWS = 20;           /* Number of rows in each lattice layer */
+int COLS = 20;           /* Number of columns in each lattice layer */
 
 double RADIUS = .6;       /* Radius of tangent disc in perturbing function */
 double INIT_T = 4.0;      /* Initial temperature */
 double TEMP = .5;         /* Final temperature */
-double DELTA_T = .1;      /* Annealing temp interval */
+double DELTA_T = .1;      /* Annealing temp interval  - */
 double DELTA_B = .004;    /* B sweeping speed */
 double D = 0.3;           /* DM interaction strength */
 double B_EXT = .2;
 
-float J_INTER[NUM_L];
-float J_INTRA[NUM_L];
-float K[NUM_L];
+float J_INTER[NUM_L] = {0};     /* Interlayer interaction strengths */
+float J_INTRA[NUM_L] = {1.0};     /* Intralayer interaction strengths */
+float K[NUM_L] = {0};           /* Anisotropy (layer resolved) */
 
-int OVER_FLAG = 2;        /* Number of OR sweeps performed after every MC sweep */
+int OVER_FLAG = 1;              /* Number of OR sweeps performed after every MC sweep */
 
 int ANNEAL_TIME = 2000;         /* Temperature annealing time */
 int EQ_TIME = 100000;           /* Number of equilibration sweeps */
 int COR_TIME = 100;             /* Number of correlation sweeps */
+
+enum topology {Square, Triangle, Honeycomb, Kagome};     /* Topology options */
+enum topology lattice_top = Square;                      /* Default topology is square lattice */
 
 /********************************************/
 /*    End simulation parameters.            */
@@ -65,10 +70,14 @@ typedef spin_t lattice_t[NUM_L][ROWS][COLS];
 
 gsl_rng * rng;
 lattice_t lattice;
-lattice_t lattice_copy;
 
 /* D vectors */
 gsl_vector * D_vec[4];
+gsl_vector * spin_vector;
+gsl_vector* point_vector;
+gsl_vector* temp_vector;
+gsl_matrix* rot_matrix;
+
 
 void initialize_lattice(char *);
 void parse_config_file(char *);
@@ -94,24 +103,28 @@ int suscept_v_temp(double**);
 void test_lattice_TC();
 
 
-int main(){
-  printf("Testing");
-  test_lattice_TC();
-}
-
 void initialize_lattice(char * config_fn){
+  /* Notes for updated topologies: will need to reconfigure D vector for each topology */
   int l, i, j;
-  for(i=0; i < 4; i++)
-    D_vec[i] = gsl_vector_alloc(3
 
+  /* Initialize DM interaction vector - currently only supports square topology */
+  for(i=0; i < 4; i++)
+    D_vec[i] = gsl_vector_alloc(3);
   init_D_vec();
 
+  /* Parse configuration file for simulation parameters if config_fn
+     is not an empty string. */
   if(!strcmp(config_fn, "")){
     printf("Using configuration file: %s\n", config_fn);
     parse_config_file(config_fn);
   }
 
-  //initialize_params();
+  /* Allocate space for necessary vectors and other structures */
+  spin_vector = gsl_vector_alloc(3);
+  point_vector = gsl_vector_alloc(3);
+  temp_vector = gsl_vector_calloc(3);
+  rot_matrix = gsl_matrix_alloc(3,3);
+
 
   rng = gsl_rng_alloc(gsl_rng_mt19937);
   gsl_rng_set (rng, time(NULL));
@@ -125,13 +138,88 @@ void initialize_lattice(char * config_fn){
 }
 
 void parse_config_file(char * config_fn){
-  /* Format of config file:
-
+  /* Format of config file: see sample_config.txt
   */
-}
+  FILE *fptr;
+  char line[130], param[15], s_value[30], token[10];
+  int i_value, index;
+  double f_value;
 
+  if(!fptr = fopen(config_fn, "r")){
+    printf("Configuration file could not be opened.\n");
+  }
+  else{
+    while(fgets(line, 130, fptr)){
+        if(sscanf(line, "%s = {%s}\n", param, s_value) == 2){
+          /* Params with multiple float values: J_INTER, J_INTRA, K */
+          index = 0;
+          token = strtok(s_value, ",");
+          if(!strcmp(param, "J_INTER")){
+            while( token != NULL ) {
+              J_INTER[index] = atof(token);
+              token = strtok(NULL, ",");
+              index++;
+            }
+          }else if(!strcmp(param, "J_INTRA")){
+            J_INTRA[index] = atof(token);
+            token = strtok(NULL, ",");
+            index++;
+          }else if(!strcmp(param, "K")){
+            K[index] = atof(token);
+            token = strtok(NULL, ",");
+            index++;
+          }
+        }
+        else if(sscanf(line, "%s = %f\n", param, &f_value) == 2){
+          /* Params with single float value: RADIUS, INIT_T, TEMP, DELTA_T, DELTA_B, D, B_EXT*/
+          if(!strcmp(param, "RADIUS")){
+            RADIUS = f_value;
+          }else if(!strcmp(param, "INIT_T")){
+            INIT_T = f_value;
+          }else if(!strcmp(param, "TEMP")){
+            TEMP = f_value;
+          }else if(!strcmp(param, "DELTA_T")){
+            DELTA_T = f_value;
+          }else if(!strcmp(param, "DELTA_B")){
+            DELTA_B = f_value;
+          }else if(!strcmp(param, "D")){
+            D = f_value;
+          }else if(!strcmp(param, "B_EXT")){
+            B_EXT = f_value;
+          }
+        }
+        else if(sscanf(line, "%s = %d\n", param, &i_value) == 2){
+          /* Params with single int value: SIM_NUM, NUM_L, ROWS, COLS, OVER_FLAG, ANNEAL_TIME, EQ_TIME, COR_TIME */
+          if(!strcmp(param, "SIM_NUM")){
+            SIM_NUM = i_value;
+          }else if(!strcmp(param, "NUM_L")){
+            NUM_L = i_value;
+          }else if(!strcmp(param, "ROWS")){
+            ROWS = i_value;
+          }else if(!strcmp(param, "COLS")){
+            COLS = i_value;
+          }else if(!strcmp(param, "OVER_FLAG")){
+            OVER_FLAG = i_value;
+          }else if(!strcmp(param, "ANNEAL_TIME")){
+            ANNEAL_TIME = i_value;
+          }else if(!strcmp(param, "EQ_TIME")){
+            EQ_TIME = i_value;
+          }else if(!strcmp(param, "COR_TIME")){
+            COR_TIME = i_value;
+          }
+        }
+        else{
+          printf("Invalid configuration format detected.\n");
+        }
+    }
+    fclose(fptr);
+  }
+
+
+
+}
+/*
 void initialize_params(){
-  /* Initialize D vector values */
 
   init_D_vec();
   //init_D_vec(D_n, 0, D, 0);
@@ -140,7 +228,6 @@ void initialize_params(){
   //init_D_vec(D_w, -D, 0, 0);
 
 
-  /* Change K, J_inter and J_intra parameters here */
   int j;
   for(j = 0; j < NUM_L; j++){
     K[j] = -0;
@@ -148,19 +235,16 @@ void initialize_params(){
     J_INTRA[j] = 1.0;
   }
 
-  //J_INTER[0] = .1;   /* TOP LAYERS */
-  J_INTER[NUM_L-1] = 0; /* No interaction between 1st and last layer */
+  //J_INTER[0] = .1;
+  J_INTER[NUM_L-1] = 0;
 
-  /* Example, introducing small increased anisotropy on top layer:
-
-  K[0] = .08
-
-  */
 
 
 }
+*/
 
 void init_D_vec(){
+  /* NEED TO GENERALIZE FOR VARIOUS TOPOLOGIES */
 
   /*
   gsl_vector_set(D_vec[0], 0, 0);
@@ -206,6 +290,7 @@ void init_D_vec(){
 }
 
 void gen_random_spin(spin_t* spin){
+    /* Generate a random spin value and store in spin */
     double x1, x2, mag_sq;
     gsl_rng_uniform(rng);
 
@@ -228,17 +313,16 @@ void gen_random_spin(spin_t* spin){
 void simulate(int num_sweeps, double T){
   int i, num_or, num_accept = 0;
   for(i = 0; i < num_sweeps; i++){
-    //printf("Sweep #: %d\n", i);
     num_accept += sweep(T);
     for(num_or = 0; num_or < OVER_FLAG; num_or++){
-      //printf("Overrelaxing.");
       overrelax();
     }
   }
-
+  /*
   if(num_sweeps > 1){
     printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*NUM_L*1.0));
   }
+  */
 
 }
 
@@ -257,23 +341,16 @@ int sweep(double T){
     row = gsl_rng_get(rng) % ROWS;
     col = gsl_rng_get(rng) % COLS;
 
-    //printf("Chosen site: %d, %d, %d \n", layer, row, col);
-    //printf("Spin is: (%f, %f, %f)\n", lattice[layer][row][col].x, lattice[layer][row][col].y, lattice[layer][row][col].z);
-
-
     /* Generate a perturbation of the spin at the chosen lattice site */
     perturb_spin(&temp_spin, &lattice[layer][row][col]);
     delta_E = calc_delta_E(&temp_spin, &lattice[layer][row][col], layer, row, col);
     random_num = gsl_rng_uniform(rng);
-    //printf("Delta E is %f\n", delta_E);
-    //printf("Random number: %f\n", random_num);
-    //printf("Exponential: %f \n", gsl_sf_exp(-(1.0/T)*delta_E));
+
     if( !( (delta_E > 0) && (random_num >= gsl_sf_exp(-(1.0/T)*delta_E)) ) ){
       lattice[layer][row][col].x = temp_spin.x;
       lattice[layer][row][col].y = temp_spin.y;
       lattice[layer][row][col].z = temp_spin.z;
       num_accept += 1;
-      //printf("Accepted. \n");
     }
   }
 
@@ -286,15 +363,15 @@ void perturb_spin(spin_t* temp_spin, spin_t* spin){
   double x, y, z, x_new, y_new, u_x, u_y;
   double theta, phi;
   double norm;
-  gsl_vector* spin_vector = gsl_vector_alloc(3);
+  /////***** gsl_vector* spin_vector = gsl_vector_alloc(3);
   gsl_vector_set(spin_vector, 0, spin->x);
   gsl_vector_set(spin_vector, 1, spin->y);
   gsl_vector_set(spin_vector, 2, spin->z);
 
-  gsl_vector* point_vector = gsl_vector_alloc(3);
-  gsl_vector* temp_vector = gsl_vector_calloc(3);
+  /////***** gsl_vector* point_vector = gsl_vector_alloc(3);
+  /////***** gsl_vector* temp_vector = gsl_vector_calloc(3);
 
-  gsl_matrix* rot_matrix = gsl_matrix_alloc(3,3);
+  /////***** gsl_matrix* rot_matrix = gsl_matrix_alloc(3,3);
 
   /* Generate random position on the tangent disc */
   r = sqrt(gsl_rng_uniform(rng))*RADIUS;
@@ -341,7 +418,7 @@ void perturb_spin(spin_t* temp_spin, spin_t* spin){
   gsl_matrix_set(rot_matrix, 2, 2,  cos(theta));
 
 
-  gsl_blas_dgemv(CblasNoTrans,1.0, rot_matrix, point_vector,0.0,temp_vector);
+  gsl_blas_dgemv(CblasNoTrans, 1.0, rot_matrix, point_vector, 0.0, temp_vector);
   gsl_vector_add(temp_vector, spin_vector);
   norm = sqrt(gsl_pow_2(gsl_vector_get(temp_vector, 0))
               + gsl_pow_2(gsl_vector_get(temp_vector, 1))
@@ -354,13 +431,15 @@ void perturb_spin(spin_t* temp_spin, spin_t* spin){
 
   //printf("Generated perturbation: %f, %f, %f \n", temp_spin->x, temp_spin->y, temp_spin->z);
 
-  gsl_vector_free(spin_vector);
-  gsl_vector_free(point_vector);
-  gsl_vector_free(temp_vector);
-  gsl_matrix_free(rot_matrix);
+  /////***** gsl_vector_free(spin_vector);
+  /////***** gsl_vector_free(point_vector);
+  /////***** gsl_vector_free(temp_vector);
+  /////***** gsl_matrix_free(rot_matrix);
 }
 
 double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col){
+
+  /* NOTES FOR EXTENDED TOPOLOGIES: UPDATE NEIGHBOR VECTOR DEFINITION */
 
   gsl_vector* neighbors[4];
   gsl_vector* cross_temp = gsl_vector_alloc(3);
@@ -492,20 +571,15 @@ void cool_lattice(double T){
   float curr_temp;
   curr_temp = INIT_T;
   while(curr_temp > T){
-      curr_temp -= DELTA_T;
       simulate(ANNEAL_TIME, curr_temp);
+      curr_temp -= DELTA_T;
   }
-
 }
 
 void overrelax(){
   /* Overrelaxation step performed between every sweep.
 
     Reflect every spin on the lattice to the other side of the effective field vector.
-
-    QUESTION: Does overrelaxing need to be performed using the entire old-state? Jiadong
-    uses already overrelaxed spin configurations in future overrelaxation procedures.
-
   */
   spin_t temp;
   int i, j, k;
@@ -518,17 +592,6 @@ void overrelax(){
         lattice[i][j][k].y = 2*temp.y - lattice[i][j][k].y;
         lattice[i][j][k].z = 2*temp.z - lattice[i][j][k].z;
       }
-  /*
-  for(i = 0; i < NUM_L; i++)
-    for(j=0; j < ROWS; j++)
-      for(k = 0; k < COLS; k++){
-            lattice[i][j][k].x = lattice_copy[i][j][k].x;
-            lattice[i][j][k].y = lattice_copy[i][j][k].y;
-            lattice[i][j][k].z = lattice_copy[i][j][k].z;
-      }
-
-  */
-
 }
 
 void eff_project(spin_t* field, int layer, int row, int col){
@@ -759,26 +822,14 @@ double calc_TC(){
      [(i,j), (i-1,j), (i,j+1)], [(i,j), (i,j-1), (i+1, j)], [(i,j), (i,j+1), (i+1,j)]
   */
   double solid_angle_sum = 0;
-  printf("Calc tc");
   int i, j, k;
   for(i = 0; i < NUM_L; i++)
     for(j=0; j < ROWS; j++)
       for(k=0; k < COLS; k++){
-        //solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS]);
-        //solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][k], lattice[i][j][(k+1)%COLS]);
-        //printf("Triangle (%d,%d) -> (%d,%d) -> (%d,%d): %f\n", j,k, j, (((k-1)%COLS) + COLS) % COLS, (j+1)%ROWS, k, calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS], lattice[i][(j+1)%ROWS][k]));
         solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS], lattice[i][(j+1)%ROWS][k]);
-        //solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j+1)%ROWS][k], lattice[i][j][(k+1)%COLS]);
-        //printf("Triangle (%d,%d) -> (%d,%d) -> (%d,%d): %f\n", j,k, (j)%ROWS, (k+1)%COLS, (((j-1)%ROWS) + ROWS) % ROWS, k, calc_solid_angle(lattice[i][j][k], lattice[i][(j)%ROWS][(k+1)%COLS], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][(k)%COLS]));
-
         solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j)%ROWS][(k+1)%COLS], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][(k)%COLS]);
-
-        //printf("Solid angle sum is now %f \n", solid_angle_sum);
-
       }
-
   return solid_angle_sum/(4*M_PI);
-
 }
 
 double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3){
@@ -833,7 +884,6 @@ double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3){
 
 
   return Omega;
-
 }
 
 

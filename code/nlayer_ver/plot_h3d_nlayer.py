@@ -12,7 +12,7 @@ from matplotlib import pyplot, colors
 from scipy.optimize import curve_fit
 import time
 
-SIM_NUM = 185
+SIM_NUM = 205
 NUM_L = 1
 ROWS = 20
 COLS = 20
@@ -277,6 +277,6 @@ def plot_M_v_B(max_samples = 10000):
 
 if __name__ == "__main__":
     #plot_lattice()
-    autocorrelate_mag(300000, 3000)
+    #autocorrelate_mag(300000, 3000)
     #plot_mag()
-    #plot_suscept()
+    plot_suscept()

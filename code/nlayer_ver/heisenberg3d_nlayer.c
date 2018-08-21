@@ -25,25 +25,25 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 /*    initialize lattice.                    */
 /*********************************************/
 
-int SIM_NUM = 185;    /* Simulation number - appears in both configuration and result files */
+int SIM_NUM = 205;    /* Simulation number - appears in both configuration and result files */
 
-int NUM_L = 1;           /* Number of layers */
-int ROWS = 20;        /* Number of rows in each lattice layer */
-int COLS = 20;        /* Number of columns in each lattice layer */
+#define NUM_L 1           /* Number of layers */
+#define ROWS 20        /* Number of rows in each lattice layer */
+#define COLS 20        /* Number of columns in each lattice layer */
 
 double RADIUS = .6;       /* Radius of tangent disc in perturbing function */
 double INIT_T = 4.0;      /* Initial temperature */
-double TEMP = .5;         /* Final temperature */
+double TEMP = 2.0;         /* Final temperature */
 double DELTA_T = .1;      /* Annealing temp interval */
 double DELTA_B = .004;    /* B sweeping speed */
-double D = 0.3;           /* DM interaction strength */
-double B_EXT = .2;
+double D = 0.0;           /* DM interaction strength */
+double B_EXT = 1.25;
 
 float J_INTER[NUM_L];
 float J_INTRA[NUM_L];
 float K[NUM_L];
 
-int OVER_FLAG = 2;        /* Number of OR sweeps performed after every MC sweep */
+int OVER_FLAG = 1;        /* Number of OR sweeps performed after every MC sweep */
 
 int ANNEAL_TIME = 2000;         /* Temperature annealing time */
 int EQ_TIME = 100000;           /* Number of equilibration sweeps */
@@ -101,7 +101,7 @@ int main(){
 void initialize_lattice(){
   int l, i, j;
   for(i=0; i < 4; i++)
-    D_vec[i] = gsl_vector_alloc(3
+    D_vec[i] = gsl_vector_alloc(3);
 
   init_D_vec();
 
@@ -135,7 +135,7 @@ void initialize_params(){
   for(j = 0; j < NUM_L; j++){
     K[j] = -0;
     J_INTER[j] = .1;
-    J_INTRA[j] = 1.0;
+    J_INTRA[j] = -1.0;
   }
 
   //J_INTER[0] = .1;   /* TOP LAYERS */
@@ -482,8 +482,9 @@ void cool_lattice(double T){
   float curr_temp;
   curr_temp = INIT_T;
   while(curr_temp > T){
-      curr_temp -= DELTA_T;
+
       simulate(ANNEAL_TIME, curr_temp);
+      curr_temp -= DELTA_T;
   }
 
 }
@@ -888,7 +889,7 @@ int mag_v_temp(double** mag_vals){
 int suscept_v_temp(double** s_vals){
   /* Perform measuring susceptibility
   after every sweep and recording in s_vals. */
-  float curr_temp = 5.0;
+  float curr_temp = 3.0;
   int i = 0;
   int j = 0;
   double mag = 0.0;
@@ -896,7 +897,7 @@ int suscept_v_temp(double** s_vals){
   double mag_sq_sum = 0.0;
 
 
-  while(curr_temp > 0.2){
+  while(curr_temp > 0.002){
     mag_sum = 0.0;
     mag_sq_sum = 0.0;
     simulate(EQ_TIME, curr_temp);
