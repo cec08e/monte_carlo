@@ -8,6 +8,7 @@
 #include <gsl/gsl_sf_exp.h>
 #include <gsl/gsl_complex.h>
 #include <gsl/gsl_complex_math.h>
+#include <gsl/gsl_sf_pow_int.h>  /********* add to opt ********/
 #include <time.h>
 
 /*
@@ -19,27 +20,41 @@ ALT: gcc -fPIC -shared -o heisenberg2d_1layer.so -lgsl -lgslcblas heisenberg2d_1
 ************ N LAYER VERSION *****************
 */
 
+/*********************************************/
+/*    Simulation Parameters                  */
+/*    May be set here or passed through      */
+/*    initialize lattice.                    */
+/*********************************************/
 
-#define SIM_NUM 830
-#define ROWS 40       /* Number of rows in each lattice layer */
-#define COLS 40      /* Number of columns in each lattice layer */
-#define RADIUS .6     /* Radius of tangent disc in perturbing function */
-#define INIT_T 3      /* Initial temperature */
-#define TEMP .2     /* Final Temp */
-#define DELTA_T .1   /* Annealing temp interval */
-#define DELTA_B .01   /* B sweeping speed */
-#define D 0.0        /* DM interaction strength */
-#define NUM_L 2      /* Number of layers */
-#define SIM_CONFIG "sim_results/sim_config.txt"
-#define OVER_FLAG 1
-#define PERIODIC_AF 1
+int SIM_NUM = 10;    /* Simulation number - appears in both configuration and result files */
 
+#define NUM_L 1           /* Number of layers */
+#define ROWS 20        /* Number of rows in each lattice layer */
+#define COLS 20        /* Number of columns in each lattice layer */
 
+double RADIUS = .6;       /* Radius of tangent disc in perturbing function */
+double INIT_T = 4.0;      /* Initial temperature */
+double TEMP = .07;         /* Final temperature */
+double DELTA_T = .1;      /* Annealing temp interval */
+double DELTA_B = .004;    /* B sweeping speed */
+double D = 0.15;           /* DM interaction strength */
 double B_EXT = 0.0;
 
-int ANNEAL_TIME = 2000;                      /* Annealing speed */
-int EQ_TIME = 100000;                          /* Number of equilibration sweeps */
-int COR_TIME = 10;                         /* Number of correlation sweeps */
+float J_INTER[NUM_L];
+float J_INTRA[NUM_L];
+float K[NUM_L];
+
+int OVER_FLAG = 1;        /* Number of OR sweeps performed after every MC sweep */
+
+int ANNEAL_TIME = 2000;         /* Temperature annealing time */
+int EQ_TIME = 50000;           /* Number of equilibration sweeps */
+int COR_TIME = 10;             /* Number of correlation sweeps */
+
+/********************************************/
+/*    End simulation parameters.            */
+/********************************************/
+
+#define SIM_CONFIG "sim_results/sim_config_fm.txt"
 
 typedef struct {
   double x;
@@ -53,21 +68,11 @@ gsl_rng * rng;
 lattice_t lattice;
 lattice_t lattice_copy;
 
-float J_INTER[NUM_L][ROWS][COLS];
-float J_INTRA[NUM_L];
-float K[NUM_L];
-
 /* D vectors */
 gsl_vector * D_vec[4];
-//gsl_vector * D_n; /* north neighbor */
-//gsl_vector * D_s;/* south neighbor */
-//gsl_vector * D_e;/* east neighbor */
-//gsl_vector * D_w; /* west neighbor */
-
 
 void initialize_lattice();
 void initialize_params();
-void calc_periodic_AF();
 void init_D_vec();
 void gen_random_spin(spin_t*);
 void simulate( int, double);
@@ -79,12 +84,15 @@ void cool_lattice(double);
 void record_lattice(spin_t***);
 void overrelax();
 void eff_project(spin_t*, int , int, int);
+double calc_staggered_mag(int);   /***** add to opt *****/
 double calc_magnetization(int);
 int M_v_B(double**);
-double calc_TC(int);
+double calc_TC();
 double calc_solid_angle(spin_t n1, spin_t n2, spin_t n3);
 void sample_mag(double*, int);
+int staggered_mag_v_temp(double** mag_vals);  /**** add to opt ****/
 int mag_v_temp(double**);
+int staggered_suscept_v_temp(double**);   /***** add to opt *****/
 int suscept_v_temp(double**);
 void test_lattice_TC();
 
@@ -98,10 +106,9 @@ void initialize_lattice(){
   int l, i, j;
   for(i=0; i < 4; i++)
     D_vec[i] = gsl_vector_alloc(3);
-  //D_n = gsl_vector_alloc(3); /* north neighbor */
-  //D_s = gsl_vector_alloc(3); /* south neighbor */
-  //D_e = gsl_vector_alloc(3); /* east neighbor */
-  //D_w = gsl_vector_alloc(3); /* west neighbor */
+
+  init_D_vec();
+
   initialize_params();
 
   rng = gsl_rng_alloc(gsl_rng_mt19937);
@@ -115,6 +122,8 @@ void initialize_lattice(){
   }
 }
 
+
+
 void initialize_params(){
   /* Initialize D vector values */
 
@@ -126,26 +135,15 @@ void initialize_params(){
 
 
   /* Change K, J_inter and J_intra parameters here */
-  int j, l, k;
+  int j;
   for(j = 0; j < NUM_L; j++){
-    K[j] = -.0;
-    J_INTRA[j] = -1.0;
-  }
-
-  if (PERIODIC_AF){
-    calc_periodic_AF();
-  }
-  else{
-    for(j = 0; j < NUM_L; j++)
-      for(l = 0; l < ROWS; l++)
-        for(k = 0; k < COLS; k++)
-          J_INTER[j][l][k] = .1;
+    K[j] = -.5;
+    J_INTER[j] = .1;
+    J_INTRA[j] = 1.0;
   }
 
   //J_INTER[0] = .1;   /* TOP LAYERS */
-  for(l = 0; l < ROWS; l++)
-    for(k = 0; k < COLS; k++)
-      J_INTER[NUM_L-1][l][k] = 0; /* No interaction between 1st and last layer */
+  J_INTER[NUM_L-1] = 0; /* No interaction between 1st and last layer */
 
   /* Example, introducing small increased anisotropy on top layer:
 
@@ -154,30 +152,6 @@ void initialize_params(){
   */
 
 
-}
-
-void calc_periodic_AF(){
-  /* Default periodicity: J[i][j] = J_i + J_j = sin(2*pi*i/UNIT_ROW  - phase_i)*cos(2*pi*j/UNIT_COL - phase_j) */
-  float phase_i = -M_PI/2.0;
-  float phase_j = -M_PI/2.0;
-  int unit_row = 40;
-  int unit_col = 40;
-  int k, i, j;
-
-  for(k = 0; k < NUM_L; k++)
-    for(i = 0; i < ROWS; i++)
-      for(j = 0; j < COLS; j++)
-        J_INTER[k][i][j] = sin(2*M_PI*i/unit_row + phase_i)*cos(2*M_PI*j/unit_col + phase_j);
-
-  for(k = 0; k < NUM_L; k++){
-    printf("Layer %d: \n", k);
-    for(i = 0; i < ROWS; i++){
-      for(j = 0; j < COLS; j++)
-        //J_INTER[k][i][j] = sin(2*M_PI*i/unit_row + phase_i)*cos(2*M_PI*j/unit_col + phase_j);
-        printf("%f  ", J_INTER[k][i][j]);
-      printf("\n");
-    }
-  }
 }
 
 void init_D_vec(){
@@ -256,7 +230,7 @@ void simulate(int num_sweeps, double T){
     }
   }
 
-  if(num_sweeps > 1){
+  if(num_sweeps > 100){
     printf("Acceptance ratio: %f \n", num_accept/(num_sweeps*ROWS*COLS*NUM_L*1.0));
   }
 
@@ -286,9 +260,7 @@ int sweep(double T){
     delta_E = calc_delta_E(&temp_spin, &lattice[layer][row][col], layer, row, col);
     random_num = gsl_rng_uniform(rng);
     //printf("Delta E is %f\n", delta_E);
-    //printf("Temp is %f \n", T);
     //printf("Random number: %f\n", random_num);
-    //printf("Value in exponent: %f \n", -(1.0/T)*delta_E);
     //printf("Exponential: %f \n", gsl_sf_exp(-(1.0/T)*delta_E));
     if( !( (delta_E > 0) && (random_num >= gsl_sf_exp(-(1.0/T)*delta_E)) ) ){
       lattice[layer][row][col].x = temp_spin.x;
@@ -423,9 +395,9 @@ double calc_delta_E(spin_t* temp_spin, spin_t* spin, int layer, int row, int col
 
   gsl_vector* inter_vector = gsl_vector_alloc(3);
 
-  gsl_vector_set(inter_vector, 0, J_INTER[layer][row][col]*lattice[(layer+1)%NUM_L][row][col].x + J_INTER[(((layer-1)%NUM_L)+NUM_L)%NUM_L][row][col]*lattice[(((layer-1)%NUM_L)+NUM_L)%NUM_L][row][col].x);
-  gsl_vector_set(inter_vector, 1, J_INTER[layer][row][col]*lattice[(layer+1)%NUM_L][row][col].y + J_INTER[(((layer-1)%NUM_L)+NUM_L)%NUM_L][row][col]*lattice[(((layer-1)%NUM_L)+NUM_L)%NUM_L][row][col].y);
-  gsl_vector_set(inter_vector, 2, J_INTER[layer][row][col]*lattice[(layer+1)%NUM_L][row][col].z + J_INTER[(((layer-1)%NUM_L)+NUM_L)%NUM_L][row][col]*lattice[(((layer-1)%NUM_L)+NUM_L)%NUM_L ][row][col].z);
+  gsl_vector_set(inter_vector, 0, J_INTER[layer]*lattice[(layer+1)%NUM_L][row][col].x + J_INTER[(((layer-1)%NUM_L)+NUM_L)%NUM_L]*lattice[(((layer-1)%NUM_L)+NUM_L)%NUM_L][row][col].x);
+  gsl_vector_set(inter_vector, 1, J_INTER[layer]*lattice[(layer+1)%NUM_L][row][col].y + J_INTER[(((layer-1)%NUM_L)+NUM_L)%NUM_L]*lattice[(((layer-1)%NUM_L)+NUM_L)%NUM_L][row][col].y);
+  gsl_vector_set(inter_vector, 2, J_INTER[layer]*lattice[(layer+1)%NUM_L][row][col].z + J_INTER[(((layer-1)%NUM_L)+NUM_L)%NUM_L]*lattice[(((layer-1)%NUM_L)+NUM_L)%NUM_L ][row][col].z);
 
   gsl_blas_ddot(delta_vector, inter_vector, &delta_dot_inter);
   /* END SECOND TERM */
@@ -514,6 +486,7 @@ void cool_lattice(double T){
   float curr_temp;
   curr_temp = INIT_T;
   while(curr_temp > T){
+
       simulate(ANNEAL_TIME, curr_temp);
       curr_temp -= DELTA_T;
   }
@@ -637,6 +610,28 @@ void eff_project(spin_t* field, int layer, int row, int col){
   gsl_vector_free(neighbors[3]);
 }
 
+/****** add to opt *****/
+double calc_staggered_mag(int layer){
+  float mag, mag_spin;
+  int i,j,k;
+  mag = 0.0;
+  mag_spin = 0.0;
+  if(layer == -1){
+    for(i=0; i < NUM_L; i++)
+        for(j=0; j < ROWS; j++)
+            for(k = 0; k < COLS; k++)
+                mag += gsl_sf_pow_int(-1.0, i+j+k)*lattice[i][j][k].z;
+    mag_spin = mag/(ROWS*COLS*NUM_L);
+  }
+  else{
+    for(j=0; j < ROWS; j++)
+        for(k = 0; k < COLS; k++)
+            mag += gsl_sf_pow_int(-1.0, layer+j+k)*lattice[layer][j][k].z;
+    mag_spin = mag/(ROWS*COLS);
+  }
+  return mag_spin;
+}
+
 double calc_magnetization(int layer){
       float mag, mag_spin;
       int i,j,k;
@@ -659,23 +654,20 @@ double calc_magnetization(int layer){
 }
 
 void record_lattice(spin_t*** record){
-  int i, j, k, n, l;
-  double TC[NUM_L] = {0.0};
-  int num_samples = 2000000;
+  int i, j, k, n;
+  double TC = 0;
 
 
   /* Cool the lattice to T  and record the lattice configuration after 5000 sweeps */
-  //printf("Cooling to %f\n", TEMP);
+
   cool_lattice(TEMP);
   simulate(EQ_TIME, TEMP);
-  for(i = 0; i < num_samples; i++){
+  for(i = 0; i < 3000; i++){
     simulate(COR_TIME, TEMP);
-    for(l = 0; l < NUM_L; l++)
-      TC[l] += calc_TC(l);
-    //printf("TC average %d: %f\n", i+1, TC/(i+1));
+    TC += calc_TC();
+    printf("TC average %d: %f\n", i+1, TC/(i+1));
   }
-  for(l = 0; l < NUM_L; l++)
-    TC[l] = TC[l]/num_samples;
+  TC = TC/3000.0;
 
   /* Record lattice configuration to results */
   for(i = 0; i < NUM_L; i++)
@@ -695,53 +687,60 @@ void record_lattice(spin_t*** record){
   fprintf(f,"\tOverrelaxation: %d\n", OVER_FLAG);
   fprintf(f,"\tCOR time = %d sweeps \n", COR_TIME);
   fprintf(f,"\tEQ time = %d sweeps \n", EQ_TIME);
-  fprintf(f,"\tTC averaged over %d correlation times.\n", num_samples);
+  fprintf(f,"\tTC averaged over 100 correlation times.\n");
 
   for(n = 0; n < NUM_L; n++)
-    fprintf(f, "\tJ_INTRA[%d] = %f\n\tJ_INTER[%d] = %f\n\tK[%d] = %f\n", n, J_INTRA[n], n, J_INTER[n][0][0], n, K[n]);
-    fprintf(f, "\tTopological charge of layer %d: %f \n", n, TC[n]);
+    fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n], n, K[n]);
+  fprintf(f, "\tTopological charge: %f \n", TC);
   fclose(f);
 
-  //printf("Topological charge is %f \n", TC);
+  printf("Topological charge is %f \n", TC);
 
 }
 
 
+/* EXPERIMENTS */
 /* EXPERIMENTS */
 int M_v_B(double** results){
     int cor_count = 0;
     int n = 0;
     //clock_t begin = clock();
     FILE *f = fopen(SIM_CONFIG, "a");
-    fprintf(f, "Simulation %d: Size = %d, T=.15, Steps=%d, dB = %f\n", SIM_NUM, ROWS, COR_TIME, DELTA_B);
+    fprintf(f, "Simulation %d: Size = %d, T=%f, Steps=%d, dB = %f\n", SIM_NUM, ROWS, TEMP, COR_TIME, DELTA_B);
     for(n = 0; n < NUM_L; n++)
-      fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n][0][0], n, K[n]);
+      fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n\tD=%f\n", n, J_INTER[n], n, K[n], D);
+    fprintf(f,"\tAveraged over 150000 ensembles.\n");
     fclose(f);
     int sample_counter = 0;
     int i;
 
-    B_EXT = -.3;
+    //printf( "Simulation %d: Size = %d, T=1.0, Steps=%d, dB = %f\n", SIM_NUM, ROWS, COR_TIME, DELTA_B);
+    //for(n = 0; n < NUM_L; n++)
+    //  printf( "\tJ_AF[%d] = %f\n\tK[%d] = %f\n\tD=%f\n", n, J_INTER[n], n, K[n], D);
+
+    B_EXT = -.12;
     //float delta_B = .004;
 
-    cool_lattice(.15);
-    while(B_EXT < .3){
-        //printf("B: %f\n", B_EXT);
-        simulate(EQ_TIME, .15);
+    cool_lattice(TEMP);
+    while(B_EXT < .12){
+      //printf("B: %f\n", B_EXT);
+        simulate(EQ_TIME, TEMP);
         // Measure magnetization
         results[sample_counter][0] = B_EXT;
         for(i=0; i <= NUM_L; i++)
           results[sample_counter][i+1] = calc_magnetization(i-1);
-	results[sample_counter][NUM_L+2] = calc_TC(0);
+        results[sample_counter][NUM_L+2] = calc_TC();
 
-        for(cor_count = 1; cor_count < 10000; cor_count++){
-          simulate(COR_TIME, .15);
+        for(cor_count = 1; cor_count < 150000; cor_count++){
+          simulate(COR_TIME, TEMP);
           for(i=0; i <= NUM_L; i++)
             results[sample_counter][i+1] += calc_magnetization(i-1);
-	  results[sample_counter][NUM_L+2] += calc_TC(0);
+          results[sample_counter][NUM_L+2] += calc_TC();
         }
         for(i=0; i <= NUM_L; i++)
-          results[sample_counter][i+1] = results[sample_counter][i+1]/10000;
-	results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/10000;
+          results[sample_counter][i+1] = results[sample_counter][i+1]/150000.0;
+        results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L+2]/150000.0;
+        //printf("Mag: %f, TC: %f \n", results[sample_counter][1], results[sample_counter][NUM_L+2]);
         sample_counter += 1;
 
         B_EXT += DELTA_B;
@@ -749,39 +748,41 @@ int M_v_B(double** results){
 
     /* UNCOMMENT FOR NEGATIVE SWEEPING !!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
-    while(B_EXT > -.3){
-      //printf("B: %f\n", B_EXT);
-        simulate(EQ_TIME, .15);
-        // Measure magnetization
-        results[sample_counter][0] = B_EXT;
-        for(i=0; i <= NUM_L; i++)
-          results[sample_counter][i+1] = calc_magnetization(i-1);
-	results[sample_counter][NUM_L+2] = calc_TC(0);
+        while(B_EXT > -.12){
+	  //printf("B: %f\n", B_EXT);
+            simulate(EQ_TIME, TEMP);
+            // Measure magnetization
+            results[sample_counter][0] = B_EXT;
+            for(i=0; i <= NUM_L; i++)
+              results[sample_counter][i+1] = calc_magnetization(i-1);
+            results[sample_counter][NUM_L+2] = calc_TC();
 
-        // Take average over 1000 sweeps
-        for(cor_count = 1; cor_count < 10000; cor_count++){
-          simulate(COR_TIME, .15);
-          for(i=0; i <= NUM_L; i++)
-            results[sample_counter][i+1] += calc_magnetization(i-1);
-	  results[sample_counter][NUM_L+2] += calc_TC(0);
+            // Take average over 1000 sweeps
+            for(cor_count = 1; cor_count < 150000; cor_count++){
+              simulate(COR_TIME, TEMP);
+              for(i=0; i <= NUM_L; i++)
+                results[sample_counter][i+1] += calc_magnetization(i-1);
+              results[sample_counter][NUM_L+2] += calc_TC();
+            }
+            for(i=0; i <= NUM_L; i++)
+              results[sample_counter][i+1] = results[sample_counter][i+1]/150000;
+            results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L + 2]/150000;
+            //printf("Mag: %f, TC: %f \n", results[sample_counter][1], results[sample_counter][NUM_L+2]);
+
+            sample_counter += 1;
+            B_EXT -= DELTA_B;
         }
-        for(i=0; i <= NUM_L; i++)
-          results[sample_counter][i+1] = results[sample_counter][i+1]/10000;
-	results[sample_counter][NUM_L + 2] = results[sample_counter][NUM_L + 2]/10000;
-        sample_counter += 1;
-        B_EXT -= DELTA_B;
+
+
+        //clock_t end = clock();
+        //double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+        //printf("Execution time: %f \n", time_spent);
+
+        return sample_counter;
+
     }
 
-
-    //clock_t end = clock();
-    //double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-    //printf("Execution time: %f \n", time_spent);
-
-    return sample_counter;
-
-}
-
-double calc_TC(int layer){
+double calc_TC(){
   /* Calculate the topological charge by triangulating the lattice and
      Sum over all solid angles of each three spin config and divide by 4pi.
      Solid angles computed by Berg formula.
@@ -791,22 +792,21 @@ double calc_TC(int layer){
   double solid_angle_sum = 0;
   //printf("Calc tc");
   int i, j, k;
-  //for(i = 0; i < NUM_L; i++)
-  i = layer;
-  for(j=0; j < ROWS; j++)
-    for(k=0; k < COLS; k++){
+  for(i = 0; i < NUM_L; i++)
+    for(j=0; j < ROWS; j++)
+      for(k=0; k < COLS; k++){
         //solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS]);
         //solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][k], lattice[i][j][(k+1)%COLS]);
         //printf("Triangle (%d,%d) -> (%d,%d) -> (%d,%d): %f\n", j,k, j, (((k-1)%COLS) + COLS) % COLS, (j+1)%ROWS, k, calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS], lattice[i][(j+1)%ROWS][k]));
-      solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS], lattice[i][(j+1)%ROWS][k]);
+        solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][j][(((k-1)%COLS) + COLS) % COLS], lattice[i][(j+1)%ROWS][k]);
         //solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j+1)%ROWS][k], lattice[i][j][(k+1)%COLS]);
         //printf("Triangle (%d,%d) -> (%d,%d) -> (%d,%d): %f\n", j,k, (j)%ROWS, (k+1)%COLS, (((j-1)%ROWS) + ROWS) % ROWS, k, calc_solid_angle(lattice[i][j][k], lattice[i][(j)%ROWS][(k+1)%COLS], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][(k)%COLS]));
 
-      solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j)%ROWS][(k+1)%COLS], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][(k)%COLS]);
+        solid_angle_sum += calc_solid_angle(lattice[i][j][k], lattice[i][(j)%ROWS][(k+1)%COLS], lattice[i][(((j-1)%ROWS) + ROWS) % ROWS][(k)%COLS]);
 
         //printf("Solid angle sum is now %f \n", solid_angle_sum);
 
-    }
+      }
 
   return solid_angle_sum/(4*M_PI);
 
@@ -890,24 +890,59 @@ void sample_mag(double* mag_vals, int sweeps){
     fprintf(f,"\tEQ time = %d sweeps \n", EQ_TIME);
 
     for(n = 0; n < NUM_L; n++)
-      fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n][0][0], n, K[n]);
+      fprintf(f, "\tJ_AF[%d] = %f\n\tK[%d] = %f\n", n, J_INTER[n], n, K[n]);
     fclose(f);
+
+}
+
+/***** add to opt ****/
+int staggered_mag_v_temp(double** mag_vals){
+  /* Perform num_sweeps number of sweeps, measuring magnetization
+  after every sweep and recording in mag_vals. */
+  simulate(EQ_TIME, 1.2);
+  float curr_temp = 1.2;
+  int i = 0;
+
+  mag_vals[i][0] = curr_temp;
+  mag_vals[i][1] = calc_staggered_mag(-1);
+  while(curr_temp > 0.005){
+    simulate(EQ_TIME,curr_temp);
+    mag_vals[i][0] = curr_temp;
+    mag_vals[i++][1] = calc_staggered_mag(-1);
+    printf("T: %f, Staggered mag: %f\n", curr_temp, mag_vals[i-1][1]);
+    curr_temp -= DELTA_T;
+
+  }
+
+  FILE *f = fopen(SIM_CONFIG, "a");
+  fprintf(f, "Simulation %d: Staggered Mag v Temp\n", SIM_NUM);
+  fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
+  fprintf(f,"\tD = %f\n", D);
+  fprintf(f,"\tB = %f\n", B_EXT);
+  fprintf(f, "\tK = %f\n", K[0]);
+  fprintf(f,"\tOverrelaxation: %d\n", OVER_FLAG);
+  fclose(f);
+
+
+  return i;
 
 }
 
 int mag_v_temp(double** mag_vals){
   /* Perform num_sweeps number of sweeps, measuring magnetization
   after every sweep and recording in mag_vals. */
-  simulate(EQ_TIME, 5.0);
-  float curr_temp = 5.0;
+  simulate(EQ_TIME, 2.0);
+  float curr_temp = 2.0;
   int i = 0;
 
   mag_vals[i][0] = curr_temp;
   mag_vals[i][1] = calc_magnetization(-1);
-  while(curr_temp > 0.3){
+  while(curr_temp > 0.1){
     simulate(EQ_TIME,curr_temp);
     mag_vals[i][0] = curr_temp;
     mag_vals[i++][1] = calc_magnetization(-1);
+    printf("T: %f, mag: %f\n", curr_temp, mag_vals[i-1][1]);
+
     curr_temp -= DELTA_T;
 
   }
@@ -926,10 +961,11 @@ int mag_v_temp(double** mag_vals){
 
 }
 
-int suscept_v_temp(double** s_vals){
+/***** add to opt *****/
+int staggered_suscept_v_temp(double** s_vals){
   /* Perform measuring susceptibility
   after every sweep and recording in s_vals. */
-  float curr_temp = 5.0;
+  float curr_temp = 1.2;
   int i = 0;
   int j = 0;
   double mag = 0.0;
@@ -937,7 +973,52 @@ int suscept_v_temp(double** s_vals){
   double mag_sq_sum = 0.0;
 
 
-  while(curr_temp > 0.2){
+  while(curr_temp > 0.002){
+    mag_sum = 0.0;
+    mag_sq_sum = 0.0;
+    simulate(EQ_TIME, curr_temp);
+    for(j = 0; j < COR_TIME; j++){
+      sweep(curr_temp);
+      mag = calc_staggered_mag(-1);
+      mag_sum += mag;
+      mag_sq_sum += gsl_pow_2(mag);
+    }
+    s_vals[i][0] = curr_temp;
+    //s_vals[i][1] = mag_sum/COR_TIME;
+    //s_vals[i][2] = mag_sq_sum/COR_TIME;
+    s_vals[i][1] = ((mag_sq_sum/COR_TIME) - gsl_pow_2((mag_sum/COR_TIME)))*(NUM_L*ROWS*COLS/curr_temp);
+    printf("T: %f, Staggered susceptibility: %f\n", s_vals[i][0], s_vals[i][1]);
+    curr_temp -= DELTA_T;
+    i++;
+  }
+
+  FILE *f = fopen(SIM_CONFIG, "a");
+  fprintf(f, "Simulation %d: Staggered Suscept v Temp\n", SIM_NUM);
+  fprintf(f, "Lattice Record %d: Size = %d\n", SIM_NUM, ROWS);
+  fprintf(f,"\tD = %f\n", D);
+  fprintf(f,"\tB = %f\n", B_EXT);
+  fprintf(f, "\tK = %f\n", K[0]);
+
+  fprintf(f,"\tOverrelaxation: %d\n", OVER_FLAG);
+  fclose(f);
+
+
+  return i;
+
+}
+
+int suscept_v_temp(double** s_vals){
+  /* Perform measuring susceptibility
+  after every sweep and recording in s_vals. */
+  float curr_temp = 2.0;
+  int i = 0;
+  int j = 0;
+  double mag = 0.0;
+  double mag_sum = 0.0;
+  double mag_sq_sum = 0.0;
+
+
+  while(curr_temp > 0.1){
     mag_sum = 0.0;
     mag_sq_sum = 0.0;
     simulate(EQ_TIME, curr_temp);
@@ -970,6 +1051,8 @@ int suscept_v_temp(double** s_vals){
   return i;
 
 }
+
+
 
 
 /* Helper function for energy calculation */
@@ -1051,7 +1134,7 @@ void test_lattice_TC(){
   lattice[0][1][3].y = 1.0/sqrt(2.0);
   lattice[0][1][3].z = 0.0;
 
-  printf("Topological charge is %f \n", calc_TC(0));
+  printf("Topological charge is %f \n", calc_TC());
 
 
 }

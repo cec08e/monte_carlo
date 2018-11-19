@@ -8,14 +8,14 @@ from random import choice
 from numpy import exp, power
 from numpy.random import randint, rand, seed
 import logging
-from matplotlib import pyplot, colors
-from scipy.optimize import curve_fit
+#from matplotlib import pyplot, colors
+#from scipy.optimize import curve_fit
 import time
 
-SIM_NUM = 231
-NUM_L = 1
-ROWS = 20
-COLS = 20
+SIM_NUM = 10200
+NUM_L = 2
+ROWS = 40
+COLS = 40
 
 PDOUBLE = ctypes.POINTER(ctypes.c_double)
 PPDOUBLE = ctypes.POINTER(PDOUBLE)
@@ -45,12 +45,6 @@ _h3d.mag_v_temp.argtypes = (ctypes.POINTER(PDOUBLE),)
 _h3d.mag_v_temp.restype = ctypes.c_int
 _h3d.suscept_v_temp.argtypes = (ctypes.POINTER(PDOUBLE),)
 _h3d.suscept_v_temp.restype = ctypes.c_int
-
-
-#_h3d.staggered_mag_v_temp.argtypes = (ctypes.POINTER(PDOUBLE),)
-#_h3d.staggered_mag_v_temp.restype = ctypes.c_int
-#_h3d.staggered_suscept_v_temp.argtypes = (ctypes.POINTER(PDOUBLE),)
-#_h3d.staggered_suscept_v_temp.restype = ctypes.c_int
 #_h3d.M_v_T.argtypes = (ctypes.POINTER(PDOUBLE), ctypes.c_double, ctypes.c_double, ctypes.c_double)
 #_h3d.M_v_T.restype = ctypes.c_int
 #_h3d.M_v_K.argtypes = (ctypes.POINTER(PDOUBLE),)
@@ -96,30 +90,6 @@ def autocorrelate_int(avg_mag_sq, t, sweep_num, mag_vals, norm = 1):
     y_samples = [((mag_vals[i]*mag_vals[i+t]) - avg_mag_sq)/norm for i in t_prime]
     return simps(y_samples, t_prime)
 
-'''
-def plot_staggered_mag():
-    global _h3d
-
-    mag_vals_entry = ctypes.c_double*2
-    mag_vals_arr = PDOUBLE*10000
-
-    mag_vals = mag_vals_arr()
-
-    for i in range(10000):
-        mag_vals[i] = mag_vals_entry()
-
-    _h3d.initialize_lattice()
-    num_samples = _h3d.staggered_mag_v_temp(mag_vals)
-
-    data = [[] for i in range(2)]
-    for i in range(num_samples):
-        data[0].append(mag_vals[i][0])
-        data[1].append(mag_vals[i][1])
-
-
-    with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:
-        pickle.dump(data, fp)
-'''
 def plot_mag():
     global _h3d
 
@@ -143,29 +113,7 @@ def plot_mag():
     with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:
         pickle.dump(data, fp)
 
-'''
-def plot_staggered_suscept():
-    global _h3d
 
-    s_vals_entry = ctypes.c_double*2
-    s_vals_arr = PDOUBLE*10000
-
-    s_vals = s_vals_arr()
-
-    for i in range(10000):
-        s_vals[i] = s_vals_entry()
-
-    _h3d.initialize_lattice()
-    num_samples = _h3d.staggered_suscept_v_temp(s_vals)
-
-    data = [[] for i in range(2)]
-    for i in range(num_samples):
-        data[0].append(s_vals[i][0])
-        data[1].append(s_vals[i][1])
-
-    with open("sim_results/sim_"+str(SIM_NUM)+".pickle", 'wb') as fp:
-        pickle.dump(data, fp)
-'''
 def plot_suscept():
     global _h3d
 
@@ -222,18 +170,18 @@ def plot_M_v_B(max_samples = 10000):
         Data is acquired by calling the M_v_B() function in the C implementation.
 
         Plots will include separate sub-figures for total magnetization M, and
-        individual layer magnetizations (identified as M1, M2, M3, M4).
+        individual layer magnetizations (identified as M1, M2, M3, M4) and TC of first layer.
 
         The number of data points returned by the C function is available as
         num_samples. The data will populate the results list, where results[i][0]
         is the external field strength of the data point and results[i][1] is the
         total magnetization. The data results[i][2:5] represent the magnetization
-        values of the individual layers.
+        values of the individual layers. The data results[i][6] is the TC of layer 1.
     """
     global _h3d
 
     # Create results list to pass by reference
-    sample_arr = ctypes.c_double*(NUM_L + 3) # B, M, M1, M2, M3, M4, ... array for specific B value
+    sample_arr = ctypes.c_double*(NUM_L + 3) # B, M, M1, M2, M3, M4, ...TC array for specific B value
     data_arr = PDOUBLE*max_samples
 
     results = data_arr()
@@ -328,9 +276,8 @@ def plot_M_v_B(max_samples = 10000):
     #plt.show()
 
 if __name__ == "__main__":
-    #plot_lattice()
-    #autocorrelate_mag(300000, 3000)
+    plot_lattice()
+    #autocorrelate_mag(500000, 5000)
     #plot_mag()
-    plot_M_v_B()
+    #plot_M_v_B()
     #plot_suscept()
-    #plot_staggered_mag()
